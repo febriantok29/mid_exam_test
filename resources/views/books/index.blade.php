@@ -102,7 +102,7 @@
                 </div>
 
                 <div class="d-flex justify-content-center mt-4">
-                    {{ $books->links() }}
+                    {{ $books->appends(request()->query())->links() }}
                 </div>
             </div>
         </div>

@@ -5,18 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Middleware\AdminMiddleware;
 
 class BookController extends Controller
 {
-    /**
-     * Constructor to apply middleware
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('admin')->except(['index', 'show']);
-    }
-    
     /**
      * Display a listing of books
      */
