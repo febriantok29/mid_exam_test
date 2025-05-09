@@ -168,8 +168,8 @@
     <!-- Footer -->
     <footer class="footer text-center">
         <div class="container">
-            <span class="text-muted">&copy; {{ date('Y') }} Sistem Manajemen Perpustakaan. Hak Cipta
-                Dilindungi.</span>
+            <span class="text-muted">&copy; {{ date('Y') }} Sistem Manajemen Perpustakaan. Febriantok Kabisatullah
+                - 411221029.</span>
         </div>
     </footer>
 
