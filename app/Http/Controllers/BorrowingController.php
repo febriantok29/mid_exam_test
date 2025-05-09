@@ -12,14 +12,6 @@ use Carbon\Carbon;
 class BorrowingController extends Controller
 {
     /**
-     * Constructor to apply middleware
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
-    /**
      * Display a listing of the borrowings
      */
     public function index()
@@ -58,7 +50,10 @@ class BorrowingController extends Controller
         $validatedData = $request->validate([
             'book_id' => 'required|exists:books,book_id',
             'borrow_date' => 'required|date|before_or_equal:today',
-            'accept_terms' => 'required',
+            'accept_terms' => 'required|accepted',
+        ], [
+            'borrow_date.before_or_equal' => 'Tanggal peminjaman tidak boleh di masa depan',
+            'accept_terms.accepted' => 'Anda harus menyetujui syarat dan ketentuan peminjaman'
         ]);
 
         $book = Book::findOrFail($validatedData['book_id']);
@@ -194,25 +189,49 @@ class BorrowingController extends Controller
                     $query->where('status', 'borrowed');
                     break;
                 case 'overdue':
-                    $query->where('status', 'borrowed')
-                          ->whereDate('borrow_date', '<', now()->subDays(14));
+                    $query->where(function($q) {
+                        $q->where(function($q2) {
+                            // Peminjaman yang masih dipinjam dan terlambat
+                            $q2->where('status', 'borrowed')
+                               ->whereDate('borrow_date', '<', now()->subDays(14));
+                        })->orWhere(function($q2) {
+                            // Peminjaman yang sudah dikembalikan tapi terlambat
+                            $q2->where('status', 'returned')
+                               ->whereRaw('DATEDIFF(return_date, borrow_date) > 14');
+                        });
+                    });
                     break;
             }
         }
         
         if ($request->has('date_range')) {
+            $now = Carbon::now();
+            
             switch ($request->date_range) {
                 case 'last_month':
-                    $query->where('borrow_date', '>=', Carbon::now()->subMonth());
+                    // Bulan lalu: dari awal sampai akhir bulan lalu
+                    $startDate = $now->copy()->subMonth()->startOfMonth();
+                    $endDate = $now->copy()->subMonth()->endOfMonth();
+                    $query->whereBetween('borrow_date', [$startDate, $endDate]);
                     break;
+                    
                 case 'last_3_months':
-                    $query->where('borrow_date', '>=', Carbon::now()->subMonths(3));
+                    // 3 bulan terakhir: dari 3 bulan lalu sampai hari ini
+                    $startDate = $now->copy()->subMonths(3)->startOfDay();
+                    $query->whereBetween('borrow_date', [$startDate, $now]);
                     break;
+                    
                 case 'last_6_months':
-                    $query->where('borrow_date', '>=', Carbon::now()->subMonths(6));
+                    // 6 bulan terakhir: dari 6 bulan lalu sampai hari ini
+                    $startDate = $now->copy()->subMonths(6)->startOfDay();
+                    $query->whereBetween('borrow_date', [$startDate, $now]);
                     break;
+                    
                 case 'last_year':
-                    $query->where('borrow_date', '>=', Carbon::now()->subYear());
+                    // Tahun lalu: dari awal sampai akhir tahun lalu
+                    $startDate = $now->copy()->subYear()->startOfYear();
+                    $endDate = $now->copy()->subYear()->endOfYear();
+                    $query->whereBetween('borrow_date', [$startDate, $endDate]);
                     break;
             }
         }
