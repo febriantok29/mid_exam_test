@@ -13,15 +13,37 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'members';
+
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
+     * The primary key for the model.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'member_id';
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'username',
+        'password_hash',
+        'full_name',        
         'role',
+        'status'
     ];
 
     /**
@@ -30,23 +52,65 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $hidden = [
-        'password',
+        'password_hash',
         'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The model's default values for attributes.
      *
-     * @return array<string, string>
+     * @var array
      */
-    protected function casts(): array
+    protected $attributes = [
+        'role' => 'member',
+        'status' => 'active',
+    ];
+
+    /**
+     * Get the password for the user.
+     *
+     * @return string
+     */
+    public function getAuthPassword()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->password_hash;
     }
-    
+
+    /**
+     * Set the user's password.
+     *
+     * @param string $value
+     * @return void
+     */
+    public function setPasswordAttribute($value)
+    {
+        $this->attributes['password_hash'] = bcrypt($value);
+    }
+
+    /**
+     * Get the borrowings for the user.
+     */
+    public function borrowings()
+    {
+        return $this->hasMany(Borrowing::class, 'member_id', 'member_id');
+    }
+
+    /**
+     * Get active borrowings that haven't been returned.
+     */
+    public function activeBorrowings()
+    {
+        return $this->borrowings()->where('is_returned', false);
+    }
+
+    /**
+     * Get overdue borrowings.
+     */
+    public function overdueBorrowings()
+    {
+        return $this->activeBorrowings()->where('due_date', '<', now());
+    }
+
     /**
      * Check if the user is an admin.
      *
@@ -56,23 +120,7 @@ class User extends Authenticatable
     {
         return $this->role === 'admin';
     }
-    
-    /**
-     * Get all borrowings for this user.
-     */
-    public function borrowings()
-    {
-        return $this->hasMany(Borrowing::class, 'member_id', 'id');
-    }
-    
-    /**
-     * Get current active borrowings for this user.
-     */
-    public function activeBorrowings()
-    {
-        return $this->borrowings()->where('is_returned', false);
-    }
-    
+
     /**
      * Get count of active borrowings.
      */
@@ -80,14 +128,12 @@ class User extends Authenticatable
     {
         return $this->activeBorrowings()->count();
     }
-    
+
     /**
      * Get count of overdue borrowings.
      */
     public function getOverdueBorrowingsCountAttribute()
     {
-        return $this->activeBorrowings()
-                    ->where('due_date', '<', now())
-                    ->count();
+        return $this->overdueBorrowings()->count();
     }
 }

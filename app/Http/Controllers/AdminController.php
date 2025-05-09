@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Book;
 use App\Models\Borrowing;
-use App\Models\Member;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -33,13 +33,17 @@ class AdminController extends Controller
                                 ->where('return_date', '<', now())->count();
 
         // Total members
-        $totalMembers = Member::count();
+        $totalMembers = User::count();
 
         // Recent borrowings
         $recentBorrowings = Borrowing::with(['book', 'member'])
                                     ->latest('borrow_date')
                                     ->take(5)
                                     ->get();
+
+        // Recent books
+        $recentBooks = Book::latest('created_at')
+                          ->paginate(5);
 
         // Low stock books
         $lowStockBooks = Book::where('quantity_available', '>', 0)
@@ -56,6 +60,7 @@ class AdminController extends Controller
             'overdueBorrowings',
             'totalMembers', 
             'recentBorrowings',
+            'recentBooks',
             'lowStockBooks',
             'notifications'
         ));
@@ -68,7 +73,7 @@ class AdminController extends Controller
      */
     public function members()
     {
-        $members = Member::paginate(15);
+        $members = User::paginate(15);
         return view('admin.members', compact('members'));
     }
 

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Member;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -28,26 +28,20 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Custom authentication logic since we're using password_hash field
-        if (Auth::attempt([
-            'username' => $credentials['username'],
-            'password' => $credentials['password'], // Auth system will handle the hashing internally
-        ])) {
+        $user = User::where('username', $credentials['username'])->first();
+
+        if ($user && Hash::check($credentials['password'], $user->password_hash)) {
+            Auth::login($user);
             $request->session()->regenerate();
 
-            // Check if the authenticated member is an admin
-            if (Auth::user()->isAdmin()) {
-                return redirect()->intended('admin/dashboard');
-            } else {
-                return redirect()->intended('dashboard');
-            }
+            return redirect()->intended($user->isAdmin() ? 'admin/dashboard' : 'dashboard');
         }
 
         throw ValidationException::withMessages([
             'username' => 'The provided credentials do not match our records.',
         ]);
     }
-
+    
     /**
      * Show registration form
      */
@@ -67,16 +61,17 @@ class AuthController extends Controller
             'full_name' => 'required|string|max:100',
         ]);
 
-        // Create the member with proper password handling
-        $member = Member::create([
+        // Create the user with proper password handling
+        $user = User::create([
             'username' => $validatedData['username'],
-            'password' => $validatedData['password'], // We'll use password instead of password_hash
             'full_name' => $validatedData['full_name'],
+            'password_hash' => Hash::make($validatedData['password']),
             'role' => 'member',
             'status' => 'active',
+            'created_at' => now()
         ]);
 
-        Auth::login($member);
+        Auth::login($user);
 
         return redirect('/dashboard');
     }
