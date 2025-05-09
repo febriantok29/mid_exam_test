@@ -75,34 +75,23 @@
                                             <a
                                                 href="{{ route('books.show', $borrowing->book) }}">{{ $borrowing->book->title }}</a>
                                         </td>
-                                        <td>{{ $borrowing->borrow_date->format('Y-m-d') }}</td>
+                                        <td>{{ $borrowing->formatted_borrow_date }}</td>
                                         <td>
                                             @if ($borrowing->return_date)
-                                                {{ $borrowing->return_date->format('Y-m-d') }}
+                                                {{ $borrowing->formatted_return_date }}
                                             @else
                                                 <span class="text-muted">Belum dikembalikan</span>
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($borrowing->status === 'returned')
-                                                <span class="badge bg-success">Dikembalikan</span>
-                                            @else
-                                                <span class="badge bg-warning">Dipinjam</span>
-                                            @endif
+                                            <span class="badge {{ $borrowing->display_status['class'] }}">
+                                                {{ $borrowing->display_status['text'] }}
+                                            </span>
                                         </td>
                                         <td>
-                                            @if ($borrowing->status === 'borrowed' && now()->diffInDays($borrowing->borrow_date) > 14)
-                                                <span class="badge bg-danger">
-                                                    {{ now()->diffInDays($borrowing->borrow_date) - 14 }} hari
-                                                </span>
-                                            @elseif ($borrowing->return_date && $borrowing->return_date->diffInDays($borrowing->borrow_date) > 14)
-                                                <span class="badge bg-danger">
-                                                    {{ $borrowing->return_date->diffInDays($borrowing->borrow_date) - 14 }}
-                                                    hari
-                                                </span>
-                                            @else
-                                                <span class="badge bg-success">Tepat Waktu</span>
-                                            @endif
+                                            <span class="badge {{ $borrowing->late_status['class'] }}">
+                                                {{ $borrowing->late_status['text'] }}
+                                            </span>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -116,7 +105,7 @@
                                 {{ $borrowings->lastItem() ?? 0 }} dari {{ $borrowings->total() }} data</p>
                         </div>
                         <div>
-                            {{ $borrowings->links() }}
+                            {{ $borrowings->appends(request()->query())->links() }}
                         </div>
                     </div>
                 @else

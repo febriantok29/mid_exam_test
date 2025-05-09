@@ -29,20 +29,18 @@
                             @endif
                             <tr>
                                 <th>Tanggal Pinjam</th>
-                                <td>{{ $borrowing->borrow_date }}</td>
+                                <td>{{ $borrowing->formatted_borrow_date }}</td>
                             </tr>
                             <tr>
                                 <th>Tanggal Kembali</th>
-                                <td>{{ $borrowing->return_date ?? 'Belum dikembalikan' }}</td>
+                                <td>{{ $borrowing->formatted_return_date ?? 'Belum dikembalikan' }}</td>
                             </tr>
                             <tr>
                                 <th>Status</th>
                                 <td>
-                                    @if ($borrowing->status === 'borrowed')
-                                        <span class="badge bg-warning">Dipinjam</span>
-                                    @else
-                                        <span class="badge bg-success">Dikembalikan</span>
-                                    @endif
+                                    <span class="badge {{ $borrowing->display_status['class'] }}">
+                                        {{ $borrowing->display_status['text'] }}
+                                    </span>
                                 </td>
                             </tr>
                         </table>
@@ -53,6 +51,7 @@
                     @if ($borrowing->status === 'borrowed')
                         <form action="{{ route('borrowings.return', $borrowing) }}" method="POST" class="d-inline">
                             @csrf
+                            @method('PUT')
                             <button type="submit" class="btn btn-success">Kembalikan Buku</button>
                         </form>
                     @endif

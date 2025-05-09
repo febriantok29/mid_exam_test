@@ -38,13 +38,11 @@
                                             <a
                                                 href="{{ route('books.show', $borrowing->book) }}">{{ $borrowing->book->title }}</a>
                                         </td>
-                                        <td>{{ $borrowing->borrow_date }}</td>
+                                        <td>{{ $borrowing->formatted_borrow_date }}</td>
                                         <td>
-                                            @if ($borrowing->status === 'returned')
-                                                <span class="badge bg-success">Dikembalikan</span>
-                                            @else
-                                                <span class="badge bg-warning">Dipinjam</span>
-                                            @endif
+                                            <span class="badge {{ $borrowing->display_status['class'] }}">
+                                                {{ $borrowing->display_status['text'] }}
+                                            </span>
                                         </td>
                                         <td>
                                             @if ($borrowing->status === 'borrowed')
@@ -66,7 +64,7 @@
                     </div>
 
                     <div class="d-flex justify-content-center mt-4">
-                        {{ $borrowings->links() }}
+                        {{ $borrowings->appends(request()->query())->links() }}
                     </div>
 
                     <div class="mt-3">
