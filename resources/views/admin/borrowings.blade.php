@@ -131,7 +131,7 @@
                                 {{ $borrowings->lastItem() ?? 0 }} dari {{ $borrowings->total() }} data</p>
                         </div>
                         <div>
-                            {{ $borrowings->links() }}
+                            {{ $borrowings->appends(request()->query())->links() }}
                         </div>
                     </div>
                 @else

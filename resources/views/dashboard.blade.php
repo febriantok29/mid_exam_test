@@ -80,6 +80,9 @@
                             @endforelse
                         </tbody>
                     </table>
+                    <div class="d-flex justify-content-center mt-4">
+                        {{ $recentBooks->appends(request()->query())->links() }}
+                    </div>
                 </div>
             </div>
         </div>

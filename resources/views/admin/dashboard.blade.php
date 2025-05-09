@@ -53,6 +53,107 @@
             </div>
         </div>
 
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Buku Terbaru</h5>
+                        <a href="{{ route('books.create') }}" class="btn btn-sm btn-primary">Tambah Buku</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Judul</th>
+                                        <th>Penulis</th>
+                                        <th>ISBN</th>
+                                        <th>Stok</th>
+                                        <th>Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($recentBooks as $book)
+                                        <tr>
+                                            <td>{{ $book->title }}</td>
+                                            <td>{{ $book->author ?? 'Tidak Diketahui' }}</td>
+                                            <td>{{ $book->isbn }}</td>
+                                            <td>
+                                                @if ($book->quantity_available > 0)
+                                                    <span class="badge bg-success">{{ $book->quantity_available }}</span>
+                                                @else
+                                                    <span class="badge bg-danger">Habis</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ route('books.show', $book) }}" class="btn btn-info">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('books.edit', $book) }}" class="btn btn-warning">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center">Belum ada buku.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-center mt-3">
+                            {{ $recentBooks->appends(request()->query())->links() }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Buku yang Perlu Restok</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Judul</th>
+                                        <th>Tersedia</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($lowStockBooks as $book)
+                                        <tr>
+                                            <td>{{ $book->title }}</td>
+                                            <td>{{ $book->quantity_available }}</td>
+                                            <td>
+                                                @if ($book->quantity_available == 0)
+                                                    <span class="badge bg-danger">Habis</span>
+                                                @else
+                                                    <span class="badge bg-warning">Stok Rendah</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="3" class="text-center">Semua stok buku mencukupi</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ route('books.index') }}" class="btn btn-sm btn-primary">Kelola Semua Buku</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-md-6 mb-4">
                 <div class="card">
@@ -99,49 +200,6 @@
                     </div>
                     <div class="card-footer">
                         <a href="{{ route('admin.borrowings') }}" class="btn btn-sm btn-primary">Lihat Semua Peminjaman</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Buku yang Perlu Restok</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Judul</th>
-                                        <th>Tersedia</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($lowStockBooks as $book)
-                                        <tr>
-                                            <td>{{ $book->title }}</td>
-                                            <td>{{ $book->quantity_available }}</td>
-                                            <td>
-                                                @if ($book->quantity_available == 0)
-                                                    <span class="badge bg-danger">Habis</span>
-                                                @else
-                                                    <span class="badge bg-warning">Stok Rendah</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="3" class="text-center">Semua stok buku mencukupi</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <a href="{{ route('books.index') }}" class="btn btn-sm btn-primary">Kelola Semua Buku</a>
                     </div>
                 </div>
             </div>
