@@ -41,7 +41,7 @@ class AuthController extends Controller
             'username' => 'The provided credentials do not match our records.',
         ]);
     }
-    
+
     /**
      * Show registration form
      */

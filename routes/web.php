@@ -56,7 +56,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('books')->name('books.')->controller(BookController::class)->group(function () {
         // Public Access Routes
         Route::get('/', 'index')->name('index');
-        
+
         // Admin Only Routes
         Route::middleware(AdminMiddleware::class)->group(function () {
             Route::get('/create', 'create')->name('create');
@@ -82,7 +82,6 @@ Route::middleware('auth')->group(function () {
             // Dynamic routes (with parameters) last
             Route::get('/{borrowing}', 'show')->name('show');
             Route::put('/{borrowing}/return', 'returnBook')->name('return');
-            Route::put('/{borrowing}/extend', 'extendBorrowing')->name('extend');
         });
 });
 

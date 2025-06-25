@@ -36,7 +36,7 @@ class BorrowingController extends Controller
             $book = Book::findOrFail($request->book_id);
             return view('borrowings.create', compact('book'));
         }
-        
+
         // Otherwise show all available books
         $availableBooks = Book::where('quantity_available', '>', 0)->get();
         return view('borrowings.create', compact('availableBooks'));
@@ -124,43 +124,6 @@ class BorrowingController extends Controller
         return redirect()->back()
             ->with('success', 'Buku berhasil dikembalikan.');
     }
-    
-    /**
-     * Extend a book borrowing period
-     */
-    public function extendBorrowing(Borrowing $borrowing)
-    {
-        // Make sure user can only extend their own borrowings or admin can extend any
-        if (!Auth::user()->isAdmin() && $borrowing->member_id != Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        // Check if book is already returned
-        if ($borrowing->status === 'returned') {
-            return redirect()->back()
-                ->with('error', 'You cannot extend a returned book.');
-        }
-        
-        // Check if the book is overdue
-        if (Carbon::parse($borrowing->borrow_date)->addDays(14)->isPast()) {
-            return redirect()->back()
-                ->with('error', 'You cannot extend an overdue book.');
-        }
-        
-        // Check if extension limit reached
-        if ($borrowing->extensions_count >= 2) {
-            return redirect()->back()
-                ->with('error', 'You have reached the maximum number of extensions (2) for this book.');
-        }
-        
-        // Extend the due date by 7 days
-        $borrowing->update([
-            'extensions_count' => $borrowing->extensions_count + 1
-        ]);
-        
-        return redirect()->back()
-            ->with('success', 'Borrowing period extended successfully by 7 days.');
-    }
 
     /**
      * Show history of borrowings
@@ -171,7 +134,7 @@ class BorrowingController extends Controller
             ->when(!Auth::user()->isAdmin(), function ($query) {
                 return $query->where('member_id', Auth::id());
             });
-            
+
         // Apply filters if any
         if ($request->has('search')) {
             $search = $request->search;
@@ -179,7 +142,7 @@ class BorrowingController extends Controller
                 $q->where('title', 'like', "%{$search}%");
             });
         }
-        
+
         if ($request->has('status')) {
             switch ($request->status) {
                 case 'returned':
@@ -203,10 +166,10 @@ class BorrowingController extends Controller
                     break;
             }
         }
-        
+
         if ($request->has('date_range')) {
             $now = Carbon::now();
-            
+
             switch ($request->date_range) {
                 case 'last_month':
                     // Bulan lalu: dari awal sampai akhir bulan lalu
@@ -214,19 +177,19 @@ class BorrowingController extends Controller
                     $endDate = $now->copy()->subMonth()->endOfMonth();
                     $query->whereBetween('borrow_date', [$startDate, $endDate]);
                     break;
-                    
+
                 case 'last_3_months':
                     // 3 bulan terakhir: dari 3 bulan lalu sampai hari ini
                     $startDate = $now->copy()->subMonths(3)->startOfDay();
                     $query->whereBetween('borrow_date', [$startDate, $now]);
                     break;
-                    
+
                 case 'last_6_months':
                     // 6 bulan terakhir: dari 6 bulan lalu sampai hari ini
                     $startDate = $now->copy()->subMonths(6)->startOfDay();
                     $query->whereBetween('borrow_date', [$startDate, $now]);
                     break;
-                    
+
                 case 'last_year':
                     // Tahun lalu: dari awal sampai akhir tahun lalu
                     $startDate = $now->copy()->subYear()->startOfYear();
@@ -235,9 +198,9 @@ class BorrowingController extends Controller
                     break;
             }
         }
-        
+
         $borrowings = $query->orderBy('borrow_date', 'desc')->paginate(10);
-        
+
         // Get reading statistics for the user
         $userId = Auth::id();
         $totalBorrowed = Borrowing::where('member_id', $userId)->count();
@@ -248,7 +211,7 @@ class BorrowingController extends Controller
                                 ->where('status', 'returned')
                                 ->whereRaw('DATEDIFF(return_date, borrow_date) > 14')
                                 ->count();
-                                
+
         // Calculate average borrowing time
         $averageBorrowDays = Borrowing::where('member_id', $userId)
                                     ->where('status', 'returned')
@@ -256,12 +219,12 @@ class BorrowingController extends Controller
                                     ->select(DB::raw('AVG(DATEDIFF(return_date, borrow_date)) as avg_days'))
                                     ->first()
                                     ->avg_days ?? 0;
-            
+
         return view('borrowings.history', compact(
-            'borrowings', 
-            'totalBorrowed', 
-            'currentlyBorrowed', 
-            'returnedLate', 
+            'borrowings',
+            'totalBorrowed',
+            'currentlyBorrowed',
+            'returnedLate',
             'averageBorrowDays'
         ));
     }
