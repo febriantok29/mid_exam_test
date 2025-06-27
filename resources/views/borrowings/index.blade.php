@@ -32,32 +32,31 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($borrowings as $borrowing)
-                                    <tr>
-                                        <td>
-                                            <a
-                                                href="{{ route('books.show', $borrowing->book) }}">{{ $borrowing->book->title }}</a>
-                                        </td>
-                                        <td>{{ $borrowing->formatted_borrow_date }}</td>
-                                        <td>
-                                            <span class="badge {{ $borrowing->display_status['class'] }}">
-                                                {{ $borrowing->display_status['text'] }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            @if ($borrowing->status === 'borrowed')
-                                                <form action="{{ route('borrowings.return', $borrowing) }}" method="POST"
-                                                    class="d-inline">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <button type="submit" class="btn btn-sm btn-success">Kembalikan
-                                                        Buku</button>
-                                                </form>
-                                            @endif
-                                            <a href="{{ route('borrowings.show', $borrowing) }}"
-                                                class="btn btn-sm btn-info">Detail</a>
-                                        </td>
-                                    </tr>
+                                @foreach ($borrowings as $borrowing)                                <tr>
+                                    <td>
+                                        <a
+                                            href="{{ route('books.show', $borrowing['book_id']) }}">{{ $borrowing['book']['title'] ?? 'Judul tidak tersedia' }}</a>
+                                    </td>
+                                    <td>{{ $borrowing['formatted_borrow_date'] }}</td>
+                                    <td>
+                                        <span class="badge {{ $borrowing['display_status']['class'] }}">
+                                            {{ $borrowing['display_status']['text'] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if ($borrowing['status'] === 'borrowed')
+                                            <form action="{{ route('borrowings.return', $borrowing['borrowing_id']) }}" method="POST"
+                                                class="d-inline">
+                                                @csrf
+                                                @method('PUT')
+                                                <button type="submit" class="btn btn-sm btn-success">Kembalikan
+                                                    Buku</button>
+                                            </form>
+                                        @endif
+                                        <a href="{{ route('borrowings.show', $borrowing['borrowing_id']) }}"
+                                            class="btn btn-sm btn-info">Detail</a>
+                                    </td>
+                                </tr>
                                 @endforeach
                             </tbody>
                         </table>

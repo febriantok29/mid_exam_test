@@ -73,24 +73,24 @@
                                     <tr>
                                         <td>
                                             <a
-                                                href="{{ route('books.show', $borrowing->book) }}">{{ $borrowing->book->title }}</a>
+                                                href="{{ route('books.show', $borrowing['book_id']) }}">{{ $borrowing['book']['title'] ?? 'Judul tidak tersedia' }}</a>
                                         </td>
-                                        <td>{{ $borrowing->formatted_borrow_date }}</td>
+                                        <td>{{ $borrowing['formatted_borrow_date'] }}</td>
                                         <td>
-                                            @if ($borrowing->return_date)
-                                                {{ $borrowing->formatted_return_date }}
+                                            @if ($borrowing['return_date'])
+                                                {{ $borrowing['formatted_return_date'] }}
                                             @else
                                                 <span class="text-muted">Belum dikembalikan</span>
                                             @endif
                                         </td>
                                         <td>
-                                            <span class="badge {{ $borrowing->display_status['class'] }}">
-                                                {{ $borrowing->display_status['text'] }}
+                                            <span class="badge {{ $borrowing['display_status']['class'] }}">
+                                                {{ $borrowing['display_status']['text'] }}
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge {{ $borrowing->late_status['class'] }}">
-                                                {{ $borrowing->late_status['text'] }}
+                                            <span class="badge {{ $borrowing['late_status']['class'] }}">
+                                                {{ $borrowing['late_status']['text'] }}
                                             </span>
                                         </td>
                                     </tr>

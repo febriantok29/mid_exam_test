@@ -11,7 +11,7 @@
 
         <div class="card mb-4">
             <div class="card-header">
-                <h3>Peminjaman #{{ $borrowing->borrowing_id }}</h3>
+                <h3>Peminjaman #{{ $borrowing['borrowing_id'] }}</h3>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -19,27 +19,27 @@
                         <table class="table">
                             <tr>
                                 <th>Buku</th>
-                                <td>{{ $borrowing->book->title }}</td>
+                                <td>{{ $borrowing['book']['title'] ?? 'Judul tidak tersedia' }}</td>
                             </tr>
                             @if (Auth::user()->isAdmin())
                                 <tr>
                                     <th>Anggota</th>
-                                    <td>{{ $borrowing->member->name }}</td>
+                                    <td>{{ $borrowing['member']['name'] ?? 'Anggota tidak tersedia' }}</td>
                                 </tr>
                             @endif
                             <tr>
                                 <th>Tanggal Pinjam</th>
-                                <td>{{ $borrowing->formatted_borrow_date }}</td>
+                                <td>{{ $borrowing['formatted_borrow_date'] }}</td>
                             </tr>
                             <tr>
                                 <th>Tanggal Kembali</th>
-                                <td>{{ $borrowing->formatted_return_date ?? 'Belum dikembalikan' }}</td>
+                                <td>{{ $borrowing['formatted_return_date'] ?? 'Belum dikembalikan' }}</td>
                             </tr>
                             <tr>
                                 <th>Status</th>
                                 <td>
-                                    <span class="badge {{ $borrowing->display_status['class'] }}">
-                                        {{ $borrowing->display_status['text'] }}
+                                    <span class="badge {{ $borrowing['display_status']['class'] }}">
+                                        {{ $borrowing['display_status']['text'] }}
                                     </span>
                                 </td>
                             </tr>
@@ -48,14 +48,14 @@
                 </div>
 
                 <div class="mt-4">
-                    @if ($borrowing->status === 'borrowed')
-                        <form action="{{ route('borrowings.return', $borrowing) }}" method="POST" class="d-inline">
+                    @if ($borrowing['status'] === 'borrowed')
+                        <form action="{{ route('borrowings.return', $borrowing['borrowing_id']) }}" method="POST" class="d-inline">
                             @csrf
                             @method('PUT')
                             <button type="submit" class="btn btn-success">Kembalikan Buku</button>
                         </form>
                     @endif
-                    <a href="{{ route('books.show', $borrowing->book) }}" class="btn btn-info ms-2">Lihat Detail Buku</a>
+                    <a href="{{ route('books.show', $borrowing['book_id']) }}" class="btn btn-info ms-2">Lihat Detail Buku</a>
                 </div>
             </div>
         </div>
