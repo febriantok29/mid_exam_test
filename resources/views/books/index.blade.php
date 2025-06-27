@@ -6,7 +6,7 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Koleksi Buku</h1>
-            @if (Auth::user()->isAdmin())
+            @if (Auth::user() && Auth::user()->isAdmin())
                 <a href="{{ route('books.create') }}" class="btn btn-primary">Tambah Buku Baru</a>
             @endif
         </div>
@@ -20,17 +20,17 @@
                     <div class="col-md-4">
                         <label for="title" class="form-label">Judul</label>
                         <input type="text" class="form-control" id="title" name="title"
-                            value="{{ request('title') }}">
+                            value="{{ $filters['title'] ?? '' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="author" class="form-label">Penulis</label>
                         <input type="text" class="form-control" id="author" name="author"
-                            value="{{ request('author') }}">
+                            value="{{ $filters['author'] ?? '' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="isbn" class="form-label">ISBN</label>
                         <input type="text" class="form-control" id="isbn" name="isbn"
-                            value="{{ request('isbn') }}">
+                            value="{{ $filters['isbn'] ?? '' }}">
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">Cari</button>
@@ -57,26 +57,26 @@
                         <tbody>
                             @forelse ($books as $book)
                                 <tr>
-                                    <td>{{ $book->title }}</td>
-                                    <td>{{ $book->author ?? 'Tidak Diketahui' }}</td>
-                                    <td>{{ $book->isbn }}</td>
-                                    <td>{{ $book->year_published ?? 'Tidak Diketahui' }}</td>
+                                    <td>{{ $book['title'] }}</td>
+                                    <td>{{ $book['author'] ?? 'Tidak Diketahui' }}</td>
+                                    <td>{{ $book['isbn'] }}</td>
+                                    <td>{{ $book['year_published'] ?? 'Tidak Diketahui' }}</td>
                                     <td>
-                                        @if ($book->quantity_available > 0)
-                                            <span class="badge bg-success">{{ $book->quantity_available }} Tersedia</span>
+                                        @if ($book['quantity_available'] > 0)
+                                            <span class="badge bg-success">{{ $book['quantity_available'] }} Tersedia</span>
                                         @else
                                             <span class="badge bg-danger">Tidak Tersedia</span>
                                         @endif
                                     </td>
                                     <td>
                                         <div class="btn-group">
-                                            <a href="{{ route('books.show', $book) }}"
+                                            <a href="{{ route('books.show', ['book' => $book['book_id']]) }}"
                                                 class="btn btn-sm btn-info">Detail</a>
 
-                                            @if (Auth::user()->isAdmin())
-                                                <a href="{{ route('books.edit', $book) }}"
+                                            @if (Auth::user() && Auth::user()->isAdmin())
+                                                <a href="{{ route('books.edit', ['book' => $book['book_id']]) }}"
                                                     class="btn btn-sm btn-warning">Edit</a>
-                                                <form action="{{ route('books.destroy', $book) }}" method="POST"
+                                                <form action="{{ route('books.destroy', ['book' => $book['book_id']]) }}" method="POST"
                                                     class="d-inline"
                                                     onsubmit="return confirm('Apakah Anda yakin ingin menghapus buku ini?');">
                                                     @csrf
@@ -85,8 +85,8 @@
                                                 </form>
                                             @endif
 
-                                            @if ($book->quantity_available > 0)
-                                                <a href="{{ route('borrowings.create', ['book_id' => $book->book_id]) }}"
+                                            @if (Auth::check() && $book['quantity_available'] > 0)
+                                                <a href="{{ route('borrowings.create', ['book_id' => $book['book_id']]) }}"
                                                     class="btn btn-sm btn-success">Pinjam</a>
                                             @endif
                                         </div>
@@ -102,7 +102,7 @@
                 </div>
 
                 <div class="d-flex justify-content-center mt-4">
-                    {{ $books->appends(request()->query())->links() }}
+                    {{ $books->links() }}
                 </div>
             </div>
         </div>
