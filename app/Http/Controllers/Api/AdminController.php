@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Utilities\ApiUtilities;
 use Exception;
+use App\Exceptions\ValidatorException;
 
 class AdminController extends Controller
 {

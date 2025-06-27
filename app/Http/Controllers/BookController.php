@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Exception;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use App\Exceptions\ValidatorException; // Assuming you have a custom exception for validation errors
 
 class BookController extends Controller
 {

@@ -109,42 +109,11 @@
                                         </td>
                                         {{-- Keterlambatan --}}
                                         <td>
-                                            @if ($borrowing->status === 'borrowed' && now()->diffInDays($borrowing->borrow_date) > 14)
-                                                @php
-                                                    $daysLate = now()->diffInDays($borrowing->borrow_date) - 14;
-                                                    $months = floor($daysLate / 30);
-                                                    $remainingDays = $daysLate % 30;
-                                                @endphp
-                                                <span class="badge bg-danger">
-                                                    @if ($months > 0)
-                                                        {{ $months }} bulan
-                                                        @if ($remainingDays > 0)
-                                                            {{ $remainingDays }} hari
-                                                        @endif
-                                                    @else
-                                                        {{ $daysLate }} hari
-                                                    @endif
-                                                </span>
-                                            @elseif ($borrowing->return_date && $borrowing->return_date->diffInDays($borrowing->borrow_date) > 14)
-                                                @php
-                                                    $daysLate = $borrowing->return_date->diffInDays($borrowing->borrow_date) - 14;
-                                                    $months = floor($daysLate / 30);
-                                                    $remainingDays = $daysLate % 30;
-                                                @endphp
-                                                <span class="badge bg-danger">
-                                                    @if ($months > 0)
-                                                        {{ $months }} bulan
-                                                        @if ($remainingDays > 0)
-                                                            {{ $remainingDays }} hari
-                                                        @endif
-                                                    @else
-                                                        {{ $daysLate }} hari
-                                                    @endif
-                                                </span>
-                                            @else
-                                                <span class="badge bg-success">Tepat Waktu</span>
+                                            @if ($borrowing->latenessInfo->text)
+                                                <span class="badge {{ $borrowing->latenessInfo->badge }}">{{ $borrowing->latenessInfo->text }}</span>
                                             @endif
                                         </td>
+
                                         {{-- Tindakan --}}
                                         <td>
                                             @if ($borrowing->status === 'borrowed')

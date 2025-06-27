@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Exceptions\ValidatorException;
 
 class AdminController extends Controller
 {
@@ -16,6 +17,83 @@ class AdminController extends Controller
     public function __construct(AdminService $adminService)
     {
         $this->adminService = $adminService;
+    }
+
+    /**
+     * Calculate lateness information for a borrowing
+     *
+     * @param object $borrowing The borrowing object
+     * @return object Object containing lateness information
+     */
+    private function calculateLatenessInfo($borrowing): object
+    {
+        $result = new \stdClass();
+        $result->badge = '';
+        $result->text = '';
+        $result->status = 'normal';
+
+        try {
+            // Convert borrow_date to Carbon object if it's not already
+            $borrowDate = is_string($borrowing->borrow_date)
+                ? \Carbon\Carbon::parse($borrowing->borrow_date)
+                : $borrowing->borrow_date;
+
+            // Calculate due date (borrow date + 14 days)
+            $dueDate = $borrowDate->copy()->addDays(14);
+
+            // Get today's date
+            $today = \Carbon\Carbon::now();
+
+            // Handle different scenarios based on borrowing status
+            if ($borrowing->status === 'returned') {
+                $returnDate = is_string($borrowing->return_date)
+                    ? \Carbon\Carbon::parse($borrowing->return_date)
+                    : $borrowing->return_date;
+
+                if ($returnDate->gt($dueDate)) {
+                    // Returned late
+                    $daysLate = abs(intval($dueDate->diffInDays($returnDate)));
+                    $result->badge = $daysLate > 14 ? 'bg-danger' : 'bg-warning';
+                    $result->text = "Telat {$daysLate} hari";
+                    $result->status = 'late';
+                } else {
+                    // Returned on time
+                    $result->badge = 'bg-success';
+                    $result->text = 'Tepat waktu';
+                    $result->status = 'on-time';
+                }
+            } else {
+                // Book has not been returned yet
+                if ($today->gt($dueDate)) {
+                    // Currently overdue
+                    $daysLate = abs(intval($dueDate->diffInDays($today)));
+                    $result->badge = $daysLate > 14 ? 'bg-danger' : 'bg-warning';
+                    $result->text = "{$daysLate} hari terlambat";
+                    $result->status = 'overdue';
+                } else {
+                    // Not yet overdue - calculate days remaining
+                    $daysLeft = abs(intval($dueDate->diffInDays($today)));
+
+                    if ($daysLeft <= 3) {
+                        // Approaching due date (warning)
+                        $result->badge = 'bg-warning';
+                        $result->text = "Hanya {$daysLeft} hari tersisa";
+                        $result->status = 'approaching-due';
+                    } else {
+                        // Still plenty of time
+                        $result->badge = 'bg-info';
+                        $result->text = "{$daysLeft} hari tersisa";
+                        $result->status = 'active';
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            $result->badge = 'bg-secondary';
+            $result->text = 'Error menghitung';
+            $result->status = 'error';
+        }
+
+        return $result;
     }
 
     /**
@@ -218,6 +296,9 @@ class AdminController extends Controller
                 if (isset($borrowingObj->return_date)) {
                     $borrowingObj->return_date = $borrowingObj->return_date ? \Carbon\Carbon::parse($borrowingObj->return_date) : null;
                 }
+
+                // Calculate lateness information and add it to the borrowing object
+                $borrowingObj->latenessInfo = $this->calculateLatenessInfo($borrowingObj);
 
                 return $borrowingObj;
             });

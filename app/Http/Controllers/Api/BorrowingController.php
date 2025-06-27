@@ -202,7 +202,12 @@ class BorrowingController extends Controller
 
             $borrowing = Borrowing::findOrFail($id);
 
-            if ($borrowing->member_id !== $userId) {
+            $user = User::find($userId);
+            if (!$user) {
+                throw new ValidatorException('Pengguna tidak ditemukan.');
+            }
+
+            if ($borrowing->member_id !== $userId && $user->role !== 'admin') {
                 throw new ValidatorException('Peminjaman tidak ditemukan.');
             }
 
