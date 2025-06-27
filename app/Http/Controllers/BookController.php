@@ -2,125 +2,166 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Book;
+use App\Services\BookService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Middleware\AdminMiddleware;
+use Exception;
+use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class BookController extends Controller
 {
+    protected BookService $bookService;
+
+    public function __construct(BookService $bookService)
+    {
+        $this->bookService = $bookService;
+    }
+
     /**
      * Display a listing of books
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
-        $query = Book::query();
-        
-        // Search by title
-        if ($request->has('title') && $request->title) {
-            $query->where('title', 'like', "%{$request->title}%");
+        try {
+            $filters = $this->getFiltersFromRequest($request);
+            $books = $this->bookService->getBooks($filters);
+
+            return view('books.index', [
+                'books' => $books,
+                'filters' => $this->getActiveFilters($request),
+            ]);
+        } catch (Exception $e) {
+            return back()->with('error', $e->getMessage());
         }
-        
-        // Search by author
-        if ($request->has('author') && $request->author) {
-            $query->where('author', 'like', "%{$request->author}%");
-        }
-        
-        // Search by isbn
-        if ($request->has('isbn') && $request->isbn) {
-            $query->where('isbn', 'like', "%{$request->isbn}%");
-        }
-        
-        $books = $query->paginate(10);
-        
-        return view('books.index', compact('books'));
     }
 
     /**
      * Show the form for creating a new book
      */
-    public function create()
+    public function create(): View
     {
         return view('books.create');
     }
 
     /**
-     * Store a newly created book in database
+     * Store a newly created book
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $validatedData = $request->validate([
-            'isbn' => 'required|string|max:20|unique:books',
-            'title' => 'required|string|max:150',
-            'author' => 'nullable|string|max:100',
-            'year_published' => 'nullable|integer|min:1800|max:' . date('Y'),
-            'quantity_available' => 'required|integer|min:0',
-        ]);
+        try {
+            $validatedData = $request->validate([
+                'isbn' => 'required|string|max:20',
+                'title' => 'required|string|max:150',
+                'author' => 'nullable|string|max:100',
+                'year_published' => 'nullable|integer|min:1800|max:' . date('Y'),
+                'quantity_available' => 'required|integer|min:0',
+            ]);
 
-        Book::create($validatedData);
-        
-        return redirect()->route('books.index')
-            ->with('success', 'Buku berhasil ditambahkan.');
+            // Add user_id to the data
+            $validatedData['user_id'] = Auth::id();
+
+            $this->bookService->createBook($validatedData);
+            return redirect()->route('books.index')->with('success', 'Buku berhasil ditambahkan.');
+        } catch (Exception $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
     }
 
     /**
      * Display the specified book
      */
-    public function show(Book $book)
+    public function show(int $id): View
     {
-        // Check if the current user has borrowed this book
-        $borrowedByUser = null;
-        if (Auth::check()) {
-            $borrowedByUser = $book->borrowings()
-                ->where('member_id', Auth::id())
-                ->where('status', 'borrowed')
-                ->first();
+        try {
+            $book = $this->bookService->getBook($id);
+            $borrowedByUser = Auth::check() ? $this->bookService->isBookBorrowedByUser($id, Auth::id()) : false;
+
+            return view('books.show', compact('book', 'borrowedByUser'));
+        } catch (Exception $e) {
+            return back()->with('error', $e->getMessage());
         }
-        
-        return view('books.show', compact('book', 'borrowedByUser'));
     }
 
     /**
      * Show the form for editing the specified book
      */
-    public function edit(Book $book)
+    public function edit(int $id): View
     {
-        return view('books.edit', compact('book'));
-    }
-
-    /**
-     * Update the specified book in database
-     */
-    public function update(Request $request, Book $book)
-    {
-        $validatedData = $request->validate([
-            'isbn' => 'required|string|max:20|unique:books,isbn,' . $book->book_id . ',book_id',
-            'title' => 'required|string|max:150',
-            'author' => 'nullable|string|max:100',
-            'year_published' => 'nullable|integer|min:1800|max:' . date('Y'),
-            'quantity_available' => 'required|integer|min:0',
-        ]);
-
-        $book->update($validatedData);
-        
-        return redirect()->route('books.show', $book)
-            ->with('success', 'Buku berhasil diperbarui.');
-    }
-
-    /**
-     * Remove the specified book from database
-     */
-    public function destroy(Book $book)
-    {
-        // Check if book has active borrowings
-        if ($book->borrowings()->where('status', 'borrowed')->exists()) {
-            return redirect()->route('books.index')
-                ->with('error', 'Tidak dapat menghapus buku yang sedang dipinjam.');
+        try {
+            $book = $this->bookService->getBook($id);
+            return view('books.edit', compact('book'));
+        } catch (Exception $e) {
+            return back()->with('error', $e->getMessage());
         }
-        
-        $book->delete();
-        
-        return redirect()->route('books.index')
-            ->with('success', 'Buku berhasil dihapus.');
+    }
+
+    /**
+     * Update the specified book
+     */
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        try {
+            $validatedData = $request->validate([
+                'isbn' => 'required|string|max:20',
+                'title' => 'required|string|max:150',
+                'author' => 'nullable|string|max:100',
+                'year_published' => 'nullable|integer|min:1800|max:' . date('Y'),
+                'quantity_available' => 'required|integer|min:0',
+            ]);
+
+
+            $validatedData['user_id'] = Auth::id();
+
+            $this->bookService->updateBook($id, $validatedData);
+            return redirect()->route('books.show', $id)->with('success', 'Buku berhasil diperbarui.');
+        } catch (Exception $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Remove the specified book
+     */
+    public function destroy(int $id): RedirectResponse
+    {
+        try {
+            $this->bookService->deleteBook($id, [
+                'user_id' => Auth::id()
+            ]);
+            return redirect()->route('books.index')->with('success', 'Buku berhasil dihapus.');
+        } catch (Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Get filters from request
+     */
+    private function getFiltersFromRequest(Request $request): array
+    {
+        $filters = [
+            'title' => $request->get('title'),
+            'author' => $request->get('author'),
+            'isbn' => $request->get('isbn'),
+            'page' => $request->get('page', 1),
+            'per_page' => 10,
+            'sort_by' => $request->get('sort_by', 'title'),
+            'sort_order' => $request->get('sort_order', 'asc'),
+        ];
+
+        return array_filter($filters, fn($value) => $value !== null && $value !== '');
+    }
+
+    /**
+     * Get active filters for the view
+     */
+    private function getActiveFilters(Request $request): array
+    {
+        return [
+            'title' => $request->get('title'),
+            'author' => $request->get('author'),
+            'isbn' => $request->get('isbn'),
+        ];
     }
 }
