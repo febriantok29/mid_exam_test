@@ -92,12 +92,6 @@ class BorrowingController extends Controller
                     ->with('error', 'ID buku tidak valid.');
             }
 
-            // Log the book_id to debug
-            \Illuminate\Support\Facades\Log::info('Attempting to borrow book', [
-                'book_id' => $book['book_id'],
-                'book_data' => $book
-            ]);
-
             // Create borrowing through API
             $borrowingData = [
                 'book_id' => $book['book_id'],

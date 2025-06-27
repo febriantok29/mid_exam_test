@@ -7,6 +7,8 @@ use App\Http\Utilities\ApiMethod;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Exception;
 use Illuminate\Support\Facades\Auth;
+// use carbon
+use CarbonCarbon;
 
 class BorrowingService
 {
@@ -94,13 +96,6 @@ class BorrowingService
             if (empty($data['book_id'])) {
                 throw new Exception('ID buku tidak boleh kosong.');
             }
-
-            // Log what we're sending to the API
-            \Illuminate\Support\Facades\Log::info('BorrowingService sending data to API', [
-                'data' => $data,
-                'book_id' => $data['book_id'],
-                'user_id' => Auth::id()
-            ]);
 
             // Ensure borrow_date is included
             if (empty($data['borrow_date'])) {
@@ -235,7 +230,7 @@ class BorrowingService
 
         // Handle special cases and conversions
         if (!empty($normalized['borrow_date'])) {
-            $borrowDate = \Carbon\Carbon::parse($normalized['borrow_date']);
+            $borrowDate = Carbon::parse($normalized['borrow_date']);
             $normalized['formatted_borrow_date'] = $borrowDate->translatedFormat('l, j F Y');
 
             // Calculate display status if not provided by API
@@ -250,7 +245,7 @@ class BorrowingService
         }
 
         if (!empty($normalized['return_date'])) {
-            $returnDate = \Carbon\Carbon::parse($normalized['return_date']);
+            $returnDate = Carbon::parse($normalized['return_date']);
             $normalized['formatted_return_date'] = $returnDate->translatedFormat('l, j F Y');
         }
 
@@ -262,7 +257,7 @@ class BorrowingService
      */
     private function calculateDisplayStatus(array $borrowing): array
     {
-        $borrowDate = \Carbon\Carbon::parse($borrowing['borrow_date']);
+        $borrowDate = Carbon::parse($borrowing['borrow_date']);
         $now = now();
 
         // Validate data
@@ -276,7 +271,7 @@ class BorrowingService
 
         // For returned books
         if ($borrowing['status'] === 'returned' && !empty($borrowing['return_date'])) {
-            $returnDate = \Carbon\Carbon::parse($borrowing['return_date']);
+            $returnDate = Carbon::parse($borrowing['return_date']);
             if ($borrowDate->diffInDays($returnDate) > 14) {
                 $days = $borrowDate->diffInDays($returnDate);
                 return [
@@ -315,7 +310,7 @@ class BorrowingService
      */
     private function calculateLateStatus(array $borrowing): array
     {
-        $borrowDate = \Carbon\Carbon::parse($borrowing['borrow_date']);
+        $borrowDate = Carbon::parse($borrowing['borrow_date']);
         $now = now();
 
         // Validate data
@@ -328,7 +323,7 @@ class BorrowingService
 
         // For returned books
         if ($borrowing['status'] === 'returned' && !empty($borrowing['return_date'])) {
-            $returnDate = \Carbon\Carbon::parse($borrowing['return_date']);
+            $returnDate = Carbon::parse($borrowing['return_date']);
             $borrowDays = $borrowDate->diffInDays($returnDate);
 
             if ($borrowDays > 14) {

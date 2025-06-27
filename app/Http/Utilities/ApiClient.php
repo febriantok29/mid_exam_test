@@ -41,6 +41,20 @@ class ApiClient
         }
 
         $this->baseUrl = $appUrl . '/api';
+
+        // Automatically include user_id for authenticated requests
+        $this->includeAuthenticationParams();
+    }
+
+    /**
+     * Include authentication parameters for API requests
+     */
+    protected function includeAuthenticationParams(): void
+    {
+        if (auth()->check()) {
+            // Add user_id to queries for all requests
+            $this->queries['user_id'] = auth()->id();
+        }
     }
 
     public static function create(): self

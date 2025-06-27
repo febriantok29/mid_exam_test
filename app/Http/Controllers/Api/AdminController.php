@@ -71,6 +71,13 @@ class AdminController extends Controller
                 200,
             );
         } catch (Exception $e) {
+            return response()->json(
+                [
+                    'message' => 'Gagal mengambil data dashboard.',
+                    'error' => $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
 
@@ -108,10 +115,22 @@ class AdminController extends Controller
                 $members->orderBy('created_at', 'desc');
             }
 
+            // Add pagination
+            $perPage = $request->get('per_page', 15);
+            $result = $members->paginate($perPage);
+
             return response()->json(
                 [
                     'message' => 'Berhasil mengambil data anggota.',
-                    'data' => $members->get(),
+                    'data' => $result->items(),
+                    'meta' => [
+                        'current_page' => $result->currentPage(),
+                        'from' => $result->firstItem(),
+                        'last_page' => $result->lastPage(),
+                        'per_page' => $result->perPage(),
+                        'to' => $result->lastItem(),
+                        'total' => $result->total(),
+                    ],
                 ],
                 200,
             );
@@ -176,12 +195,22 @@ class AdminController extends Controller
 
             $query->orderBy($sortField, $sortDirection);
 
-            $borrowings = $query->with(['book', 'member'])->get();
+            // Add pagination
+            $perPage = $request->get('per_page', 15);
+            $borrowings = $query->with(['book', 'member'])->paginate($perPage);
 
             return response()->json(
                 [
                     'message' => 'Berhasil mengambil data peminjaman.',
-                    'data' => $borrowings,
+                    'data' => $borrowings->items(),
+                    'meta' => [
+                        'current_page' => $borrowings->currentPage(),
+                        'from' => $borrowings->firstItem(),
+                        'last_page' => $borrowings->lastPage(),
+                        'per_page' => $borrowings->perPage(),
+                        'to' => $borrowings->lastItem(),
+                        'total' => $borrowings->total(),
+                    ],
                 ],
                 200,
             );
@@ -236,12 +265,22 @@ class AdminController extends Controller
 
             $query->orderBy($sortField, $sortDirection);
 
-            $books = $query->get();
+            // Add pagination
+            $perPage = $request->get('per_page', 15);
+            $books = $query->paginate($perPage);
 
             return response()->json(
                 [
                     'message' => 'Berhasil mengambil data buku.',
-                    'data' => $books,
+                    'data' => $books->items(),
+                    'meta' => [
+                        'current_page' => $books->currentPage(),
+                        'from' => $books->firstItem(),
+                        'last_page' => $books->lastPage(),
+                        'per_page' => $books->perPage(),
+                        'to' => $books->lastItem(),
+                        'total' => $books->total(),
+                    ],
                 ],
                 200,
             );

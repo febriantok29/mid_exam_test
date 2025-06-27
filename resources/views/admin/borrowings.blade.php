@@ -72,19 +72,34 @@
                             <tbody>
                                 @foreach ($borrowings as $borrowing)
                                     <tr>
+                                        {{-- Anggot --}}
                                         <td>{{ $borrowing->member->full_name }}</td>
+                                        {{-- Buku --}}
                                         <td>
                                             <a
-                                                href="{{ route('books.show', $borrowing->book) }}">{{ $borrowing->book->title }}</a>
+                                                href="{{ route('books.show', $borrowing->book->book_id ?? ($borrowing->book->id ?? 0)) }}">{{ $borrowing->book->title }}</a>
                                         </td>
-                                        <td>{{ $borrowing->borrow_date->format('Y-m-d') }}</td>
+                                        {{-- Tanggal Pinjam --}}
+                                        <td>
+                                            @if (is_object($borrowing->borrow_date) && method_exists($borrowing->borrow_date, 'format'))
+                                                {{ $borrowing->borrow_date->isoFormat('dddd, D MMMM Y') }}
+                                            @else
+                                                {{ $borrowing->borrow_date }}
+                                            @endif
+                                        </td>
+                                        {{-- Tanggal Kembali --}}
                                         <td>
                                             @if ($borrowing->return_date)
-                                                {{ $borrowing->return_date->format('Y-m-d') }}
+                                                @if (is_object($borrowing->return_date) && method_exists($borrowing->return_date, 'format'))
+                                                    {{ $borrowing->return_date->isoFormat('dddd, D MMMM Y') }}
+                                                @else
+                                                    {{ $borrowing->return_date }}
+                                                @endif
                                             @else
                                                 <span class="text-muted">Belum dikembalikan</span>
                                             @endif
                                         </td>
+                                        {{-- Status --}}
                                         <td>
                                             @if ($borrowing->status === 'returned')
                                                 <span class="badge bg-success">Dikembalikan</span>
@@ -92,31 +107,57 @@
                                                 <span class="badge bg-warning">Dipinjam</span>
                                             @endif
                                         </td>
+                                        {{-- Keterlambatan --}}
                                         <td>
                                             @if ($borrowing->status === 'borrowed' && now()->diffInDays($borrowing->borrow_date) > 14)
+                                                @php
+                                                    $daysLate = now()->diffInDays($borrowing->borrow_date) - 14;
+                                                    $months = floor($daysLate / 30);
+                                                    $remainingDays = $daysLate % 30;
+                                                @endphp
                                                 <span class="badge bg-danger">
-                                                    {{ now()->diffInDays($borrowing->borrow_date) - 14 }} hari
+                                                    @if ($months > 0)
+                                                        {{ $months }} bulan
+                                                        @if ($remainingDays > 0)
+                                                            {{ $remainingDays }} hari
+                                                        @endif
+                                                    @else
+                                                        {{ $daysLate }} hari
+                                                    @endif
                                                 </span>
                                             @elseif ($borrowing->return_date && $borrowing->return_date->diffInDays($borrowing->borrow_date) > 14)
+                                                @php
+                                                    $daysLate = $borrowing->return_date->diffInDays($borrowing->borrow_date) - 14;
+                                                    $months = floor($daysLate / 30);
+                                                    $remainingDays = $daysLate % 30;
+                                                @endphp
                                                 <span class="badge bg-danger">
-                                                    {{ $borrowing->return_date->diffInDays($borrowing->borrow_date) - 14 }}
-                                                    hari
+                                                    @if ($months > 0)
+                                                        {{ $months }} bulan
+                                                        @if ($remainingDays > 0)
+                                                            {{ $remainingDays }} hari
+                                                        @endif
+                                                    @else
+                                                        {{ $daysLate }} hari
+                                                    @endif
                                                 </span>
                                             @else
                                                 <span class="badge bg-success">Tepat Waktu</span>
                                             @endif
                                         </td>
+                                        {{-- Tindakan --}}
                                         <td>
                                             @if ($borrowing->status === 'borrowed')
-                                                <form action="{{ route('borrowings.return', $borrowing) }}" method="POST"
-                                                    class="d-inline">
+                                                <form
+                                                    action="{{ route('borrowings.return', $borrowing->borrowing_id ?? ($borrowing->id ?? 0)) }}"
+                                                    method="POST" class="d-inline">
                                                     @csrf
                                                     @method('PUT')
                                                     <button type="submit"
                                                         class="btn btn-sm btn-success">Kembalikan</button>
                                                 </form>
                                             @endif
-                                            <a href="{{ route('borrowings.show', $borrowing) }}"
+                                            <a href="{{ route('borrowings.show', $borrowing->borrowing_id ?? ($borrowing->id ?? 0)) }}"
                                                 class="btn btn-sm btn-info">Detail</a>
                                         </td>
                                     </tr>
