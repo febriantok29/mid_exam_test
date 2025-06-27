@@ -103,14 +103,38 @@ class BorrowingController extends Controller
             }
 
             $bookId = $request->input('book_id');
-            $book = Book::findOrFail($bookId);
+            if (!$bookId) {
+                throw new ValidatorException('ID buku tidak boleh kosong.');
+            }
+
+            // Find the book by the provided ID
+            $book = Book::find($bookId);
+
+            // If book not found by direct ID, try to find it by a different ID field
+            // This handles cases where front-end sends a different ID format
+            if (!$book) {
+                $book = Book::where('book_id', $bookId)->first();
+
+                if (!$book) {
+                    throw new ValidatorException("Buku dengan ID {$bookId} tidak ditemukan.");
+                }
+            }
+
+            // Ensure the book is available
+            if ($book->quantity_available <= 0) {
+                throw new ValidatorException("Buku dengan ID {$bookId} tidak tersedia untuk dipinjam.");
+            }
 
             $borrowing = Borrowing::create([
                 'member_id' => $userId,
-                'book_id' => $book->id,
+                'book_id' => $book->book_id,
                 'borrow_date' => now(),
                 'status' => 'borrowed',
             ]);
+
+            // Decrease the book's available quantity
+            $book->quantity_available--;
+            $book->save();
 
             // If everything is fine, commit the transaction
             DB::commit();
@@ -189,6 +213,14 @@ class BorrowingController extends Controller
             $borrowing->status = 'returned';
             $borrowing->return_date = $request->input('return_date', now());
             $borrowing->save();
+
+            $book = $borrowing->book;
+            if ($book) {
+                $book->quantity_available++;
+                $book->save();
+            } else {
+                throw new ValidatorException('Buku terkait tidak ditemukan.');
+            }
 
             DB::commit();
 
