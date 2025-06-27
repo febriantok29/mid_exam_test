@@ -2,230 +2,234 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\BookService;
+use App\Services\BorrowingService;
 use App\Models\Book;
-use App\Models\Borrowing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Exception;
+use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class BorrowingController extends Controller
 {
+    protected BorrowingService $borrowingService;
+    protected BookService $bookService;
+
+    public function __construct(BorrowingService $borrowingService, BookService $bookService)
+    {
+        $this->borrowingService = $borrowingService;
+        $this->bookService = $bookService;
+    }
+
     /**
      * Display a listing of the borrowings
      */
-    public function index()
+    public function index(): View
     {
-        $borrowings = Borrowing::with(['book', 'member'])
-            ->when(!Auth::user()->isAdmin(), function ($query) {
-                return $query->where('member_id', Auth::id());
-            })
-            ->orderBy('borrow_date', 'desc')
-            ->paginate(10);
+        try {
+            $borrowings = $this->borrowingService->getBorrowings([
+                'per_page' => 10,
+                'page' => request()->get('page', 1)
+            ]);
 
-        return view('borrowings.index', compact('borrowings'));
+            return view('borrowings.index', compact('borrowings'));
+        } catch (Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
      * Show the form for borrowing a new book
      */
-    public function create(Request $request)
+    public function create(Request $request): View
     {
-        // Handle the case where book_id is passed in the URL
-        if ($request->has('book_id')) {
-            $book = Book::findOrFail($request->book_id);
-            return view('borrowings.create', compact('book'));
-        }
+        try {
+            // Handle the case where book_id is passed in the URL
+            if ($request->has('book_id')) {
+                $book = $this->bookService->getBook($request->book_id);
+                return view('borrowings.create', compact('book'));
+            }
 
-        // Otherwise show all available books
-        $availableBooks = Book::where('quantity_available', '>', 0)->get();
-        return view('borrowings.create', compact('availableBooks'));
+            // Otherwise show all available books
+            $availableBooks = $this->bookService->getBooks([
+                'quantity_available_gt' => 0
+            ]);
+
+            return view('borrowings.create', compact('availableBooks'));
+        } catch (Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
      * Process a book borrowing
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $validatedData = $request->validate([
-            'book_id' => 'required|exists:books,book_id',
-            'borrow_date' => 'required|date|before_or_equal:today',
-            'accept_terms' => 'required|accepted',
-        ], [
-            'borrow_date.before_or_equal' => 'Tanggal peminjaman tidak boleh di masa depan',
-            'accept_terms.accepted' => 'Anda harus menyetujui syarat dan ketentuan peminjaman'
-        ]);
-
-        $book = Book::findOrFail($validatedData['book_id']);
-
-        // Check if book is available
-        if ($book->quantity_available <= 0) {
-            return redirect()->back()
-                ->with('error', 'Buku ini tidak tersedia untuk dipinjam.');
-        }
-
-        DB::transaction(function () use ($book, $validatedData) {
-            // Create borrowing record
-            Borrowing::create([
-                'member_id' => Auth::id(),
-                'book_id' => $book->book_id,
-                'borrow_date' => $validatedData['borrow_date'],
-                'status' => 'borrowed'
+        try {
+            $validatedData = $request->validate([
+                'book_id' => 'required|numeric',
+                'borrow_date' => 'required|date|before_or_equal:today',
+                'accept_terms' => 'required|accepted',
+            ], [
+                'borrow_date.before_or_equal' => 'Tanggal peminjaman tidak boleh di masa depan',
+                'accept_terms.accepted' => 'Anda harus menyetujui syarat dan ketentuan peminjaman'
             ]);
 
-            // Decrement quantity available
-            $book->decrement('quantity_available');
-        });
+            // Check if book exists and is available
+            $book = $this->bookService->getBook($validatedData['book_id']);
 
-        return redirect()->route('borrowings.index')
-            ->with('success', 'Buku berhasil dipinjam.');
+            if ($book['quantity_available'] <= 0) {
+                return redirect()->back()
+                    ->with('error', 'Buku ini tidak tersedia untuk dipinjam.');
+            }
+
+            // Ensure the book_id is valid
+            if (empty($book['book_id'])) {
+                return redirect()->back()
+                    ->with('error', 'ID buku tidak valid.');
+            }
+
+            // Log the book_id to debug
+            \Illuminate\Support\Facades\Log::info('Attempting to borrow book', [
+                'book_id' => $book['book_id'],
+                'book_data' => $book
+            ]);
+
+            // Create borrowing through API
+            $borrowingData = [
+                'book_id' => $book['book_id'],
+                'borrow_date' => $validatedData['borrow_date'],
+            ];
+
+            $this->borrowingService->createBorrowing($borrowingData);
+
+            return redirect()->route('borrowings.index')
+                ->with('success', 'Buku berhasil dipinjam.');
+        } catch (Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Gagal meminjam buku: ' . $e->getMessage());
+        }
     }
 
     /**
      * Display borrowing details
      */
-    public function show(Borrowing $borrowing)
+    public function show(int $id): View
     {
-        // Make sure user can only view their own borrowings or admin can view all
-        if (!Auth::user()->isAdmin() && $borrowing->member_id != Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        try {
+            $borrowing = $this->borrowingService->getBorrowing($id);
 
-        return view('borrowings.show', compact('borrowing'));
+            return view('borrowings.show', compact('borrowing'));
+        } catch (Exception $e) {
+            return back()->with('error', 'Gagal mengambil detail peminjaman: ' . $e->getMessage());
+        }
     }
 
     /**
      * Return a borrowed book
      */
-    public function returnBook(Borrowing $borrowing)
+    public function returnBook(int $id): RedirectResponse
     {
-        // Make sure user can only return their own borrowings or admin can return any
-        if (!Auth::user()->isAdmin() && $borrowing->member_id != Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        try {
+            // Get the borrowing details first
+            $borrowing = $this->borrowingService->getBorrowing($id);
 
-        // Check if book is already returned
-        if ($borrowing->status === 'returned') {
-            return redirect()->back()
-                ->with('error', 'Buku ini sudah dikembalikan.');
-        }
+            // Check if book is already returned
+            if ($borrowing['status'] === 'returned') {
+                return redirect()->back()
+                    ->with('error', 'Buku ini sudah dikembalikan.');
+            }
 
-        DB::transaction(function () use ($borrowing) {
-            // Update borrowing record
-            $borrowing->update([
-                'return_date' => now(),
-                'status' => 'returned'
+            // Return the book through API
+            $this->borrowingService->returnBorrowing($id, [
+                'return_date' => now()->format('Y-m-d')
             ]);
 
-            // Increment quantity available
-            $borrowing->book->increment('quantity_available');
-        });
-
-        return redirect()->back()
-            ->with('success', 'Buku berhasil dikembalikan.');
+            return redirect()->back()
+                ->with('success', 'Buku berhasil dikembalikan.');
+        } catch (Exception $e) {
+            return back()->with('error', 'Gagal mengembalikan buku: ' . $e->getMessage());
+        }
     }
 
     /**
      * Show history of borrowings
      */
-    public function history(Request $request)
+    public function history(Request $request): View
     {
-        $query = Borrowing::with(['book', 'member'])
-            ->when(!Auth::user()->isAdmin(), function ($query) {
-                return $query->where('member_id', Auth::id());
+        try {
+            // Build filters from request
+            $filters = [
+                'page' => $request->get('page', 1),
+                'per_page' => 10
+            ];
+
+            // Add search filters if available
+            if ($request->has('search')) {
+                $filters['search'] = $request->search;
+            }
+
+            // Add status filters
+            if ($request->has('status')) {
+                $filters['status'] = $request->status;
+            }
+
+            // Add date filters
+            if ($request->has('date_range')) {
+                $filters['date_range'] = $request->date_range;
+            }
+
+            // Get borrowings with our filters
+            $borrowings = $this->borrowingService->getBorrowings($filters);
+
+            // Calculate statistics based on the returned borrowings data
+            // In a real application, you might want to add API endpoints for these stats
+            $allBorrowings = $borrowings->items();
+
+            $totalBorrowed = count($allBorrowings);
+
+            $currentlyBorrowed = count(array_filter($allBorrowings, function($item) {
+                return $item['status'] === 'borrowed';
+            }));
+
+            $returnedLate = count(array_filter($allBorrowings, function($item) {
+                if ($item['status'] !== 'returned' || empty($item['return_date'])) {
+                    return false;
+                }
+                $borrowDate = Carbon::parse($item['borrow_date']);
+                $returnDate = Carbon::parse($item['return_date']);
+                return $borrowDate->diffInDays($returnDate) > 14;
+            }));
+
+            // Calculate average borrowing time for returned books
+            $returnedBorrowings = array_filter($allBorrowings, function($item) {
+                return $item['status'] === 'returned' && !empty($item['return_date']);
             });
 
-        // Apply filters if any
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->whereHas('book', function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%");
-            });
-        }
+            $totalDays = 0;
+            $returnedCount = count($returnedBorrowings);
 
-        if ($request->has('status')) {
-            switch ($request->status) {
-                case 'returned':
-                    $query->where('status', 'returned');
-                    break;
-                case 'borrowed':
-                    $query->where('status', 'borrowed');
-                    break;
-                case 'overdue':
-                    $query->where(function($q) {
-                        $q->where(function($q2) {
-                            // Peminjaman yang masih dipinjam dan terlambat
-                            $q2->where('status', 'borrowed')
-                               ->whereDate('borrow_date', '<', now()->subDays(14));
-                        })->orWhere(function($q2) {
-                            // Peminjaman yang sudah dikembalikan tapi terlambat
-                            $q2->where('status', 'returned')
-                               ->whereRaw('DATEDIFF(return_date, borrow_date) > 14');
-                        });
-                    });
-                    break;
+            foreach ($returnedBorrowings as $borrowing) {
+                $borrowDate = Carbon::parse($borrowing['borrow_date']);
+                $returnDate = Carbon::parse($borrowing['return_date']);
+                $totalDays += $borrowDate->diffInDays($returnDate);
             }
+
+            $averageBorrowDays = $returnedCount > 0 ? round($totalDays / $returnedCount) : 0;
+
+            return view('borrowings.history', compact(
+                'borrowings',
+                'totalBorrowed',
+                'currentlyBorrowed',
+                'returnedLate',
+                'averageBorrowDays'
+            ));
+        } catch (Exception $e) {
+            return back()->with('error', 'Gagal mengambil riwayat peminjaman: ' . $e->getMessage());
         }
-
-        if ($request->has('date_range')) {
-            $now = Carbon::now();
-
-            switch ($request->date_range) {
-                case 'last_month':
-                    // Bulan lalu: dari awal sampai akhir bulan lalu
-                    $startDate = $now->copy()->subMonth()->startOfMonth();
-                    $endDate = $now->copy()->subMonth()->endOfMonth();
-                    $query->whereBetween('borrow_date', [$startDate, $endDate]);
-                    break;
-
-                case 'last_3_months':
-                    // 3 bulan terakhir: dari 3 bulan lalu sampai hari ini
-                    $startDate = $now->copy()->subMonths(3)->startOfDay();
-                    $query->whereBetween('borrow_date', [$startDate, $now]);
-                    break;
-
-                case 'last_6_months':
-                    // 6 bulan terakhir: dari 6 bulan lalu sampai hari ini
-                    $startDate = $now->copy()->subMonths(6)->startOfDay();
-                    $query->whereBetween('borrow_date', [$startDate, $now]);
-                    break;
-
-                case 'last_year':
-                    // Tahun lalu: dari awal sampai akhir tahun lalu
-                    $startDate = $now->copy()->subYear()->startOfYear();
-                    $endDate = $now->copy()->subYear()->endOfYear();
-                    $query->whereBetween('borrow_date', [$startDate, $endDate]);
-                    break;
-            }
-        }
-
-        $borrowings = $query->orderBy('borrow_date', 'desc')->paginate(10);
-
-        // Get reading statistics for the user
-        $userId = Auth::id();
-        $totalBorrowed = Borrowing::where('member_id', $userId)->count();
-        $currentlyBorrowed = Borrowing::where('member_id', $userId)
-                                    ->where('status', 'borrowed')
-                                    ->count();
-        $returnedLate = Borrowing::where('member_id', $userId)
-                                ->where('status', 'returned')
-                                ->whereRaw('DATEDIFF(return_date, borrow_date) > 14')
-                                ->count();
-
-        // Calculate average borrowing time
-        $averageBorrowDays = Borrowing::where('member_id', $userId)
-                                    ->where('status', 'returned')
-                                    ->whereNotNull('return_date')
-                                    ->select(DB::raw('AVG(DATEDIFF(return_date, borrow_date)) as avg_days'))
-                                    ->first()
-                                    ->avg_days ?? 0;
-
-        return view('borrowings.history', compact(
-            'borrowings',
-            'totalBorrowed',
-            'currentlyBorrowed',
-            'returnedLate',
-            'averageBorrowDays'
-        ));
     }
 }
