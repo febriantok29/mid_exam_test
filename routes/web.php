@@ -98,6 +98,8 @@ Route::middleware(['auth', AdminMiddleware::class])
         Route::get('/members', 'members')->name('members');
         Route::get('/borrowings', 'borrowings')->name('borrowings');
         Route::get('/books', 'books')->name('books');
-        Route::get('/reports', 'reports')->name('reports');
-        Route::get('/reports/popular', 'popularBooks')->name('reports.popular');
+
+        // Export routes
+        Route::get('/borrowings/export/excel', 'exportBorrowingsToExcel')->name('borrowings.export.excel');
+        Route::get('/borrowings/export/pdf', 'exportBorrowingsToPdf')->name('borrowings.export.pdf');
     });

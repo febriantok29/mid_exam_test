@@ -6,6 +6,16 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Kelola Peminjaman</h1>
+            <div class="btn-group">
+                <a href="{{ route('admin.borrowings.export.excel', request()->query()) }}"
+                   class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Ekspor Excel
+                </a>
+                <a href="{{ route('admin.borrowings.export.pdf', request()->query()) }}"
+                   class="btn btn-danger ms-2">
+                    <i class="fas fa-file-pdf"></i> Ekspor PDF
+                </a>
+            </div>
         </div>
 
         <div class="card mb-4">

@@ -46,6 +46,7 @@ Route::namespace('App\Http\Controllers\Api')->group(function () {
             Route::get('/borrowings', 'AdminController@borrowings');
             Route::get('/books', 'AdminController@books');
             Route::get('/popular-books', 'AdminController@popularBooks');
+            Route::get('/borrowings/export', 'BorrowingController@exportData');
         });
 });
 

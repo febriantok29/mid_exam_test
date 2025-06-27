@@ -288,4 +288,55 @@ class AdminService
             throw new Exception('Gagal mengambil data buku populer: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get data for exporting borrowings
+     *
+     * @param array $filters
+     * @return array
+     */
+    public function getBorrowingsForExport(array $filters = []): array
+    {
+        try {
+            // Add user_id to filters
+            $filters['user_id'] = Auth::id();
+
+            // Clean up empty filters
+            $validFilters = array_filter($filters, fn($value) => $value !== null && $value !== '');
+
+            // Log the request
+            Log::info('AdminService: Calling borrowings export API', [
+                'filters' => $validFilters,
+                'user_id' => Auth::id()
+            ]);
+
+            $response = $this->apiClient
+                ->withQueries($validFilters)
+                ->call(ApiMethod::GET, 'admin/borrowings/export');
+
+            // Log the response
+            Log::info('AdminService: Borrowings export API response', [
+                'has_data' => isset($response['data']),
+                'error' => $response['error'] ?? 'none'
+            ]);
+
+            if (!isset($response['data'])) {
+                if (isset($response['error'])) {
+                    Log::error('AdminService: API error', [
+                        'error' => $response['error']
+                    ]);
+                    throw new Exception($response['error']);
+                }
+                throw new Exception('Data peminjaman tidak tersedia');
+            }
+
+            return $response['data'];
+        } catch (Exception $e) {
+            Log::error('AdminService: Exception', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new Exception('Gagal mengambil data peminjaman: ' . $e->getMessage());
+        }
+    }
 }

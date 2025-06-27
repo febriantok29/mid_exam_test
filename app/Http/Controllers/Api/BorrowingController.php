@@ -296,4 +296,180 @@ class BorrowingController extends Controller
             );
         }
     }
+
+    /**
+     * Export borrowing data for admin
+     */    public function exportData()
+    {
+        try {
+            // Set Carbon locale to Indonesian
+            \Carbon\Carbon::setLocale('id');
+            // Set PHP locale for formatLocalized method
+            setlocale(LC_TIME, 'id_ID.utf8', 'id_ID', 'id');
+
+            $userId = request()->input('user_id');
+            $user = User::find($userId);
+
+            if (!$userId || !$user || $user->role !== 'admin') {
+                throw new ValidatorException('Anda tidak memiliki akses untuk ekspor data.');
+            }
+
+            $query = Borrowing::query();
+
+            // Apply filters if provided
+            if (request()->has('search')) {
+                $search = request()->input('search');
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('book', function ($q) use ($search) {
+                        $q->where('title', 'like', '%' . $search . '%');
+                    })->orWhereHas('member', function ($q) use ($search) {
+                        $q->where('full_name', 'like', '%' . $search . '%');
+                    });
+                });
+            }
+
+            if (request()->has('status')) {
+                $status = request()->input('status');
+
+                if ($status == 'overdue') {
+                    $query->where(function ($q) {
+                        $q->where(function ($q2) {
+                            // Peminjaman yang masih dipinjam dan terlambat
+                            $q2->where('status', 'borrowed')->whereDate('borrow_date', '<', now()->subDays(14));
+                        })->orWhere(function ($q2) {
+                            // Peminjaman yang sudah dikembalikan tapi terlambat
+                            $q2->where('status', 'returned')->whereRaw('DATEDIFF(return_date, borrow_date) > 14');
+                        });
+                    });
+                } else {
+                    $query->where('status', $status);
+                }
+            }
+
+            if (request()->has('date_range')) {
+                $dateRange = request()->input('date_range');
+                switch ($dateRange) {
+                    case 'last_month':
+                        $query->whereDate('borrow_date', '>=', now()->subMonth());
+                        break;
+                    case 'last_3_months':
+                        $query->whereDate('borrow_date', '>=', now()->subMonths(3));
+                        break;
+                    case 'last_6_months':
+                        $query->whereDate('borrow_date', '>=', now()->subMonths(6));
+                        break;
+                    case 'last_year':
+                        $query->whereDate('borrow_date', '>=', now()->subYear());
+                        break;
+                }
+            }
+
+            // Include relations for complete data
+            $borrowings = $query->with(['book', 'member'])->get();
+
+            // Transform data for export
+            $borrowingsData = $borrowings->map(function ($borrowing) {
+                $borrowDate = is_string($borrowing->borrow_date)
+                    ? \Carbon\Carbon::parse($borrowing->borrow_date)
+                    : $borrowing->borrow_date;
+
+                $dueDate = $borrowDate->copy()->addDays(14);
+
+                $returnDate = null;
+                $lateDays = 0;
+                $status = $borrowing->status;
+                $statusLabel = ($status === 'borrowed') ? 'Masih Dipinjam' : 'Dikembalikan';
+
+                if ($borrowing->return_date) {
+                    $returnDate = is_string($borrowing->return_date)
+                        ? \Carbon\Carbon::parse($borrowing->return_date)
+                        : $borrowing->return_date;
+
+                    if ($returnDate->gt($dueDate)) {
+                        $lateDays = $returnDate->diffInDays($dueDate);
+                    }
+                } elseif ($borrowing->status === 'borrowed' && now()->gt($dueDate)) {
+                    $lateDays = now()->diffInDays($dueDate);
+                    $statusLabel = 'Terlambat';
+                }
+
+                return [
+                    'id' => $borrowing->id,
+                    'member_name' => $borrowing->member->full_name ?? 'Tidak diketahui',
+                    'book_title' => $borrowing->book->title ?? 'Tidak diketahui',
+                    'book_author' => $borrowing->book->author ?? 'Tidak diketahui',
+                    'borrow_date' => $this->formatDateWithoutComma($borrowDate),
+                    'due_date' => $this->formatDateWithoutComma($dueDate),
+                    'return_date' => $returnDate ? $this->formatDateWithoutComma($returnDate) : null,
+                    'status' => $statusLabel,
+                    'late_days' => abs($lateDays),
+                    'fine_amount' => $lateDays > 0 ? (abs($lateDays) * 1000) : 0, // Rp 1.000/hari
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Data peminjaman berhasil diekspor.',
+                'data' => $borrowingsData,
+            ], 200);
+        } catch (ValidatorException $e) {
+            $errorMessage = $e->errors() ? array_values($e->errors())[0][0] : 'Terjadi kesalahan validasi.';
+
+            return response()->json([
+                'error' => $errorMessage,
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Format date without commas in day name
+     *
+     * @param \Carbon\Carbon|string $date
+     * @return string|null
+     */
+    private function formatDateWithoutComma($date)
+    {
+        if (!$date) {
+            return null;
+        }
+
+        if (is_string($date)) {
+            $date = \Carbon\Carbon::parse($date);
+        }
+
+        $dayNames = [
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu'
+        ];
+
+        $monthNames = [
+            'January' => 'Januari',
+            'February' => 'Februari',
+            'March' => 'Maret',
+            'April' => 'April',
+            'May' => 'Mei',
+            'June' => 'Juni',
+            'July' => 'Juli',
+            'August' => 'Agustus',
+            'September' => 'September',
+            'October' => 'Oktober',
+            'November' => 'November',
+            'December' => 'Desember'
+        ];
+
+        $dayOfWeek = $dayNames[$date->format('l')] ?? $date->format('l');
+        $day = $date->format('j');
+        $month = $monthNames[$date->format('F')] ?? $date->format('F');
+        $year = $date->format('Y');
+
+        return "$dayOfWeek $day $month $year";
+    }
 }

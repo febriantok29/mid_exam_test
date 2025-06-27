@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Exceptions\ValidatorException;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class AdminController extends Controller
 {
@@ -99,7 +102,7 @@ class AdminController extends Controller
     /**
      * Show the admin dashboard.
      *
-     * @return View
+     * @return \Illuminate\View\View
      */
     public function dashboard(): View
     {
@@ -399,6 +402,164 @@ class AdminController extends Controller
     }
 
     /**
+     * Export borrowings to Excel file
+     *
+     * @param Request $request
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+     */
+    public function exportBorrowingsToExcel(Request $request)
+    {
+        try {
+            // Get filters from request
+            $filters = $request->only(['search', 'status', 'date_range']);
+
+            // Get data from API
+            $borrowingsData = $this->adminService->getBorrowingsForExport($filters);
+
+            // Generate filename with date
+            $filename = 'peminjaman_' . date('Y-m-d_His') . '.xlsx';
+
+            // Return Excel download
+            return $this->generateBorrowingsExcel($borrowingsData, $filename);
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Gagal mengekspor data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export borrowings to PDF file
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function exportBorrowingsToPdf(Request $request)
+    {
+        try {
+            // Get filters from request
+            $filters = $request->only(['search', 'status', 'date_range']);
+
+            // Get data from API
+            $borrowingsData = $this->adminService->getBorrowingsForExport($filters);
+
+            // Generate filename with date
+            $filename = 'peminjaman_' . date('Y-m-d_His') . '.pdf';
+
+            // Return PDF download
+            return $this->generateBorrowingsPdf($borrowingsData, $filename);
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Gagal mengekspor data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate Excel file for borrowings data
+     *
+     * @param array $data
+     * @param string $filename
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+     */    private function generateBorrowingsExcel(array $data, string $filename)
+    {
+        // Ensure Carbon uses Indonesian locale
+        \Carbon\Carbon::setLocale('id');
+        // Set PHP locale for formatLocalized method
+        setlocale(LC_TIME, 'id_ID.utf8', 'id_ID', 'id');
+
+        // Create new Excel spreadsheet
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Set column headers
+        $sheet->setCellValue('A1', 'No.');
+        $sheet->setCellValue('B1', 'Nama Anggota');
+        $sheet->setCellValue('C1', 'Judul Buku');
+        $sheet->setCellValue('D1', 'Penulis');
+        $sheet->setCellValue('E1', 'Tanggal Pinjam');
+        $sheet->setCellValue('F1', 'Tanggal Jatuh Tempo');
+        $sheet->setCellValue('G1', 'Tanggal Kembali');
+        $sheet->setCellValue('H1', 'Status');
+        $sheet->setCellValue('I1', 'Keterlambatan (Hari)');
+        $sheet->setCellValue('J1', 'Denda (Rp)');
+
+        // Style header row
+        $headerStyle = [
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => [
+                    'rgb' => 'DDDDDD',
+                ],
+            ],
+        ];
+
+        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+
+        // Add data rows
+        $row = 2;
+        foreach ($data as $index => $borrowing) {
+            $sheet->setCellValue('A' . $row, $index + 1);
+            $sheet->setCellValue('B' . $row, $borrowing['member_name']);
+            $sheet->setCellValue('C' . $row, $borrowing['book_title']);
+            $sheet->setCellValue('D' . $row, $borrowing['book_author']);
+            $sheet->setCellValue('E' . $row, $borrowing['borrow_date']); // Now already in dddd, D MMMM Y format
+            $sheet->setCellValue('F' . $row, $borrowing['due_date']); // Now already in dddd, D MMMM Y format
+            $sheet->setCellValue('G' . $row, $borrowing['return_date'] ?? 'Belum dikembalikan');
+            $sheet->setCellValue('H' . $row, $borrowing['status']);
+            $sheet->setCellValue('I' . $row, $borrowing['late_days']);
+            $sheet->setCellValue('J' . $row, number_format($borrowing['fine_amount'], 0, ',', '.'));
+
+            $row++;
+        }
+
+        // Auto size columns
+        foreach (range('A', 'J') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        // Create writer
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        // Save to temporary file
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'export_');
+        $writer->save($tempFilePath);
+
+        // Return file download response
+        return response()->download($tempFilePath, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Generate PDF file for borrowings data
+     *
+     * @param array $data
+     * @param string $filename
+     * @return \Illuminate\Http\Response
+     */    private function generateBorrowingsPdf(array $data, string $filename)
+    {
+        // Ensure Carbon uses Indonesian locale
+        \Carbon\Carbon::setLocale('id');
+        // Set PHP locale for formatLocalized method
+        setlocale(LC_TIME, 'id_ID.utf8', 'id_ID', 'id');
+
+        // Create PDF instance
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.exports.borrowings-pdf', [
+            'borrowings' => $data,
+            'generatedDate' => $this->formatDateWithoutComma(now()) . ', ' . now()->format('H:i:s'),
+            'filters' => request()->only(['search', 'status', 'date_range']),
+        ]);
+
+        // Set paper size and orientation
+        $pdf->setPaper('a4', 'landscape');
+
+        // Return file download response
+        return $pdf->download($filename);
+    }
+
+    /**
      * Get system notifications based on dashboard data.
      *
      * @return array
@@ -448,5 +609,54 @@ class AdminController extends Controller
             Log::warning('Error generating notifications: ' . $e->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Format date without commas in day name
+     *
+     * @param \Carbon\Carbon|string $date
+     * @return string|null
+     */
+    private function formatDateWithoutComma($date)
+    {
+        if (!$date) {
+            return null;
+        }
+
+        if (is_string($date)) {
+            $date = \Carbon\Carbon::parse($date);
+        }
+
+        $dayNames = [
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu'
+        ];
+
+        $monthNames = [
+            'January' => 'Januari',
+            'February' => 'Februari',
+            'March' => 'Maret',
+            'April' => 'April',
+            'May' => 'Mei',
+            'June' => 'Juni',
+            'July' => 'Juli',
+            'August' => 'Agustus',
+            'September' => 'September',
+            'October' => 'Oktober',
+            'November' => 'November',
+            'December' => 'Desember'
+        ];
+
+        $dayOfWeek = $dayNames[$date->format('l')] ?? $date->format('l');
+        $day = $date->format('j');
+        $month = $monthNames[$date->format('F')] ?? $date->format('F');
+        $year = $date->format('Y');
+
+        return "$dayOfWeek $day $month $year";
     }
 }

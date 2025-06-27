@@ -148,6 +148,12 @@
                                         <i class="fas fa-user-shield"></i> Dasbor Admin
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.borrowings') }}"
+                                        class="nav-link {{ request()->is('admin/borrowings') ? 'active' : '' }}">
+                                        <i class="fas fa-clipboard-list"></i> Kelola Peminjaman
+                                    </a>
+                                </li>
                             @endif
                         </ul>
                     </div>
