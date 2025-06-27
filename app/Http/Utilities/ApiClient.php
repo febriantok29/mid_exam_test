@@ -37,7 +37,7 @@ class ApiClient
         // For local development, ensure we use port 8000
         $appUrl = config('app.url');
         if (app()->environment('local') && parse_url($appUrl, PHP_URL_HOST) === 'localhost') {
-            $appUrl = 'http://localhost:8001';
+            $appUrl = 'http://localhost:8000';
         }
 
         $this->baseUrl = $appUrl . '/api';
@@ -184,7 +184,13 @@ class ApiClient
 
             $response_body = $response->json();
 
+            // Check for error in response
             if (isset($response_body['error'])) {
+                $this->handleErrorResponse($response);
+            }
+
+            // Check for failed status code (4xx or 5xx)
+            if ($response->failed()) {
                 $this->handleErrorResponse($response);
             }
 
