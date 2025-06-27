@@ -154,30 +154,89 @@
 
                     <!-- Main content -->
                     <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
-                        @yield('content')
+
+                        <div class="content">
+                            @if ($errors->any())
+                                <div class="container mt-3">
+                                    <div class="alert alert-danger">
+                                        <ul class="mb-0">
+                                            @foreach ($errors->all() as $error)
+                                                <li>{{ $error }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if (session('error'))
+                                <div class="container mt-3">
+                                    <div class="alert alert-danger">
+                                        {{ session('error') }}
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if (session('success'))
+                                <div class="container mt-3">
+                                    <div class="alert alert-success">
+                                        {{ session('success') }}
+                                    </div>
+                                </div>
+                            @endif
+                            @yield('content')
                     </main>
                 </div>
             </div>
         @else
             <div class="container py-4">
-                @yield('content')
-            </div>
-        @endauth
-    </div>
 
-    <!-- Footer -->
-    <footer class="footer text-center">
-        <div class="container">
-            <span class="text-muted">&copy; {{ date('Y') }} Sistem Manajemen Perpustakaan. Febriantok Kabisatullah
-                - 411221029.</span>
+                <div class="content">
+                    @if ($errors->any())
+                        <div class="container mt-3">
+                            <div class="alert alert-danger">
+                                <ul class="mb-0">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if (session('error'))
+                        <div class="container mt-3">
+                            <div class="alert alert-danger">
+                                {{ session('error') }}
+                            </div>
+                        </div>
+                    @endif
+
+                    @if (session('success'))
+                        <div class="container mt-3">
+                            <div class="alert alert-success">
+                                {{ session('success') }}
+                            </div>
+                        </div>
+                    @endif
+                    @yield('content')
+                </div>
+            @endauth
         </div>
-    </footer>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Footer -->
+        <footer class="footer text-center">
+            <div class="container">
+                <span class="text-muted">&copy; {{ date('Y') }} Sistem Manajemen Perpustakaan. Febriantok
+                    Kabisatullah
+                    - 411221029.</span>
+            </div>
+        </footer>
 
-    <!-- Optional custom scripts -->
-    @stack('scripts')
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+        <!-- Optional custom scripts -->
+        @stack('scripts')
 </body>
 
 </html>
