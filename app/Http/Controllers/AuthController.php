@@ -2,14 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Exception;
+use App\Models\User;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    protected AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     /**
      * Show login form
      */
@@ -23,23 +32,25 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'username' => 'required|string',
-            'password' => 'required|string',
-        ]);
+        try {
+            $credentials = $request->validate([
+                'username' => 'required|string',
+                'password' => 'required|string',
+            ]);
 
-        $user = User::where('username', $credentials['username'])->first();
+            // Use service to authenticate
+            $userData = $this->authService->attemptLogin($credentials['username'], $credentials['password']);
 
-        if ($user && Hash::check($credentials['password'], $user->password_hash)) {
+            // Get user for web auth
+            $user = User::find($userData['id']);
             Auth::login($user);
-            $request->session()->regenerate();
 
             return redirect()->intended($user->isAdmin() ? 'admin/dashboard' : 'dashboard');
+        } catch (Exception $e) {
+            throw ValidationException::withMessages([
+                'username' => $e->getMessage(),
+            ]);
         }
-
-        throw ValidationException::withMessages([
-            'username' => 'The provided credentials do not match our records.',
-        ]);
     }
 
     /**
@@ -59,18 +70,17 @@ class AuthController extends Controller
             'username' => 'required|string|max:50|unique:members',
             'password' => 'required|string|min:6|confirmed',
             'full_name' => 'required|string|max:100',
+        ], [
+            'username.unique' => 'Username sudah digunakan.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'full_name.required' => 'Nama lengkap harus diisi.',
         ]);
 
-        // Create the user with proper password handling
-        $user = User::create([
-            'username' => $validatedData['username'],
-            'full_name' => $validatedData['full_name'],
-            'password_hash' => Hash::make($validatedData['password']),
-            'role' => 'member',
-            'status' => 'active',
-            'created_at' => now()
-        ]);
+        // Use service to register
+        $userData = $this->authService->register($validatedData);
 
+        // Get user for web auth
+        $user = User::find($userData['id']);
         Auth::login($user);
 
         return redirect('/dashboard');
@@ -83,6 +93,7 @@ class AuthController extends Controller
     {
         Auth::logout();
 
+        Session::flush();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
