@@ -377,8 +377,10 @@ class BorrowingController extends Controller
 
                 $returnDate = null;
                 $lateDays = 0;
+                $latenessText = '';
                 $status = $borrowing->status;
                 $statusLabel = ($status === 'borrowed') ? 'Masih Dipinjam' : 'Dikembalikan';
+                $today = now();
 
                 if ($borrowing->return_date) {
                     $returnDate = is_string($borrowing->return_date)
@@ -386,11 +388,26 @@ class BorrowingController extends Controller
                         : $borrowing->return_date;
 
                     if ($returnDate->gt($dueDate)) {
-                        $lateDays = $returnDate->diffInDays($dueDate);
+                        // Returned late
+                        $daysLate = abs(intval($dueDate->diffInDays($returnDate)));
+                        $lateDays = $daysLate;
+                        $latenessText = "Telat {$daysLate} hari";
+                    } else {
+                        // Returned on time
+                        $lateDays = 0;
+                        $latenessText = 'Tepat waktu';
                     }
-                } elseif ($borrowing->status === 'borrowed' && now()->gt($dueDate)) {
-                    $lateDays = now()->diffInDays($dueDate);
+                } elseif ($borrowing->status === 'borrowed' && $today->gt($dueDate)) {
+                    // Currently overdue
+                    $daysLate = abs(intval($dueDate->diffInDays($today)));
+                    $lateDays = $daysLate;
+                    $latenessText = "{$daysLate} hari terlambat";
                     $statusLabel = 'Terlambat';
+                } else {
+                    // Not yet overdue - calculate days remaining
+                    $daysLeft = abs(intval($dueDate->diffInDays($today)));
+                    $lateDays = 0;
+                    $latenessText = "{$daysLeft} hari tersisa";
                 }
 
                 return [
@@ -403,6 +420,7 @@ class BorrowingController extends Controller
                     'return_date' => $returnDate ? $this->formatDateWithoutComma($returnDate) : null,
                     'status' => $statusLabel,
                     'late_days' => abs($lateDays),
+                    'lateness_text' => $latenessText,
                     'fine_amount' => $lateDays > 0 ? (abs($lateDays) * 1000) : 0, // Rp 1.000/hari
                 ];
             });

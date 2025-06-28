@@ -90,7 +90,7 @@
                 <th>Tanggal Jatuh Tempo</th>
                 <th>Tanggal Kembali</th>
                 <th>Status</th>
-                <th class="text-right">Keterlambatan<br>(Hari)</th>
+                <th class="text-right">Keterlambatan</th>
                 <th class="text-right">Denda (Rp)</th>
             </tr>
         </thead>
@@ -105,7 +105,7 @@
                     <td>{{ $borrowing['due_date'] }}</td>
                     <td>{{ $borrowing['return_date'] ?? 'Belum dikembalikan' }}</td>
                     <td>{{ $borrowing['status'] }}</td>
-                    <td class="text-right">{{ $borrowing['late_days'] }}</td>
+                    <td class="text-right">{{ $borrowing['lateness_text'] ?? '-' }}</td>
                     <td class="text-right">{{ number_format($borrowing['fine_amount'], 0, ',', '.') }}</td>
                 </tr>
             @endforeach

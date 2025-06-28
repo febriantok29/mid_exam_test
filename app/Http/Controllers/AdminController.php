@@ -12,6 +12,10 @@ use App\Exceptions\ValidatorException;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Barryvdh\DomPDF\Facade\Pdf;
+use stdClass;
+use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as SpreadsheetWriter;
 
 class AdminController extends Controller
 {
@@ -30,28 +34,24 @@ class AdminController extends Controller
      */
     private function calculateLatenessInfo($borrowing): object
     {
-        $result = new \stdClass();
+        $result = new stdClass();
         $result->badge = '';
         $result->text = '';
         $result->status = 'normal';
 
         try {
             // Convert borrow_date to Carbon object if it's not already
-            $borrowDate = is_string($borrowing->borrow_date)
-                ? \Carbon\Carbon::parse($borrowing->borrow_date)
-                : $borrowing->borrow_date;
+            $borrowDate = is_string($borrowing->borrow_date) ? Carbon::parse($borrowing->borrow_date) : $borrowing->borrow_date;
 
             // Calculate due date (borrow date + 14 days)
             $dueDate = $borrowDate->copy()->addDays(14);
 
             // Get today's date
-            $today = \Carbon\Carbon::now();
+            $today = Carbon::now();
 
             // Handle different scenarios based on borrowing status
             if ($borrowing->status === 'returned') {
-                $returnDate = is_string($borrowing->return_date)
-                    ? \Carbon\Carbon::parse($borrowing->return_date)
-                    : $borrowing->return_date;
+                $returnDate = is_string($borrowing->return_date) ? Carbon::parse($borrowing->return_date) : $borrowing->return_date;
 
                 if ($returnDate->gt($dueDate)) {
                     // Returned late
@@ -90,7 +90,7 @@ class AdminController extends Controller
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $result->badge = 'bg-secondary';
             $result->text = 'Error menghitung';
             $result->status = 'error';
@@ -116,7 +116,7 @@ class AdminController extends Controller
             $memberStats = $dashboardData['member_stats'] ?? [];
             $activeBorrowings = $borrowingStats['active'] ?? 0;
             $overdueBorrowings = $borrowingStats['overdue'] ?? 0;
-            $totalMembers = $memberStats['total'] ?? 0;            // Convert recent borrowings to collection of objects to ensure object access
+            $totalMembers = $memberStats['total'] ?? 0; // Convert recent borrowings to collection of objects to ensure object access
             $recentBorrowings = collect($dashboardData['recent_borrowings'] ?? [])->map(function ($borrowing) {
                 // Convert main borrowing to object
                 $borrowingObj = (object) $borrowing;
@@ -152,28 +152,12 @@ class AdminController extends Controller
             $perPage = 5;
             $currentPage = request()->input('page', 1);
             $recentBooksArray = $lowStockBooks;
-            $recentBooks = new LengthAwarePaginator(
-                $recentBooksArray->forPage($currentPage, $perPage),
-                count($recentBooksArray),
-                $perPage,
-                $currentPage,
-                ['path' => request()->url()]
-            );
+            $recentBooks = new LengthAwarePaginator($recentBooksArray->forPage($currentPage, $perPage), count($recentBooksArray), $perPage, $currentPage, ['path' => request()->url()]);
 
             // System notifications might need to be generated locally
             $notifications = $this->getSystemNotifications();
 
-            return view('admin.dashboard', compact(
-                'totalBooks',
-                'bookStats',
-                'activeBorrowings',
-                'overdueBorrowings',
-                'totalMembers',
-                'recentBorrowings',
-                'recentBooks',
-                'lowStockBooks',
-                'notifications'
-            ));
+            return view('admin.dashboard', compact('totalBooks', 'bookStats', 'activeBorrowings', 'overdueBorrowings', 'totalMembers', 'recentBorrowings', 'recentBooks', 'lowStockBooks', 'notifications'));
         } catch (Exception $e) {
             Log::error('Error in admin dashboard: ' . $e->getMessage());
 
@@ -183,7 +167,7 @@ class AdminController extends Controller
                 'total' => 0,
                 'low_stock' => 0,
                 'out_of_stock' => 0,
-                'never_borrowed' => 0
+                'never_borrowed' => 0,
             ];
             $activeBorrowings = 0;
             $overdueBorrowings = 0;
@@ -192,26 +176,10 @@ class AdminController extends Controller
             $lowStockBooks = collect([]);
 
             // Empty paginator for recent books
-            $recentBooks = new LengthAwarePaginator(
-                collect([]),
-                0,
-                5,
-                1,
-                ['path' => request()->url()]
-            );
+            $recentBooks = new LengthAwarePaginator(collect([]), 0, 5, 1, ['path' => request()->url()]);
             $notifications = [];
 
-            return view('admin.dashboard', compact(
-                'totalBooks',
-                'bookStats',
-                'activeBorrowings',
-                'overdueBorrowings',
-                'totalMembers',
-                'recentBorrowings',
-                'recentBooks',
-                'lowStockBooks',
-                'notifications'
-            ))->with('error', 'Gagal memuat data dashboard: ' . $e->getMessage());
+            return view('admin.dashboard', compact('totalBooks', 'bookStats', 'activeBorrowings', 'overdueBorrowings', 'totalMembers', 'recentBorrowings', 'recentBooks', 'lowStockBooks', 'notifications'))->with('error', 'Gagal memuat data dashboard: ' . $e->getMessage());
         }
     }
 
@@ -240,13 +208,7 @@ class AdminController extends Controller
             });
 
             // Create a new paginator with converted objects
-            $members = new LengthAwarePaginator(
-                $convertedMembers,
-                $paginatorMembers->total(),
-                $paginatorMembers->perPage(),
-                $paginatorMembers->currentPage(),
-                $paginatorMembers->getOptions()
-            );
+            $members = new LengthAwarePaginator($convertedMembers, $paginatorMembers->total(), $paginatorMembers->perPage(), $paginatorMembers->currentPage(), $paginatorMembers->getOptions());
 
             return view('admin.members', compact('members'));
         } catch (Exception $e) {
@@ -293,11 +255,11 @@ class AdminController extends Controller
 
                 // Parse dates if they exist
                 if (isset($borrowingObj->borrow_date)) {
-                    $borrowingObj->borrow_date = \Carbon\Carbon::parse($borrowingObj->borrow_date);
+                    $borrowingObj->borrow_date = Carbon::parse($borrowingObj->borrow_date);
                 }
 
                 if (isset($borrowingObj->return_date)) {
-                    $borrowingObj->return_date = $borrowingObj->return_date ? \Carbon\Carbon::parse($borrowingObj->return_date) : null;
+                    $borrowingObj->return_date = $borrowingObj->return_date ? Carbon::parse($borrowingObj->return_date) : null;
                 }
 
                 // Calculate lateness information and add it to the borrowing object
@@ -307,13 +269,7 @@ class AdminController extends Controller
             });
 
             // Create a new paginator with the converted objects
-            $borrowings = new LengthAwarePaginator(
-                $convertedBorrowings,
-                $paginatorBorrowings->total(),
-                $paginatorBorrowings->perPage(),
-                $paginatorBorrowings->currentPage(),
-                $paginatorBorrowings->getOptions()
-            );
+            $borrowings = new LengthAwarePaginator($convertedBorrowings, $paginatorBorrowings->total(), $paginatorBorrowings->perPage(), $paginatorBorrowings->currentPage(), $paginatorBorrowings->getOptions());
 
             return view('admin.borrowings', compact('borrowings'));
         } catch (Exception $e) {
@@ -357,13 +313,7 @@ class AdminController extends Controller
             });
 
             // Create a new paginator with converted objects
-            $books = new LengthAwarePaginator(
-                $convertedBooks,
-                $paginatorBooks->total(),
-                $paginatorBooks->perPage(),
-                $paginatorBooks->currentPage(),
-                $paginatorBooks->getOptions()
-            );
+            $books = new LengthAwarePaginator($convertedBooks, $paginatorBooks->total(), $paginatorBooks->perPage(), $paginatorBooks->currentPage(), $paginatorBooks->getOptions());
 
             return view('admin.books', compact('books'));
         } catch (Exception $e) {
@@ -421,7 +371,6 @@ class AdminController extends Controller
 
             // Return Excel download
             return $this->generateBorrowingsExcel($borrowingsData, $filename);
-
         } catch (Exception $e) {
             return back()->with('error', 'Gagal mengekspor data: ' . $e->getMessage());
         }
@@ -447,7 +396,6 @@ class AdminController extends Controller
 
             // Return PDF download
             return $this->generateBorrowingsPdf($borrowingsData, $filename);
-
         } catch (Exception $e) {
             return back()->with('error', 'Gagal mengekspor data: ' . $e->getMessage());
         }
@@ -459,15 +407,15 @@ class AdminController extends Controller
      * @param array $data
      * @param string $filename
      * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-     */    private function generateBorrowingsExcel(array $data, string $filename)
+     */ private function generateBorrowingsExcel(array $data, string $filename)
     {
         // Ensure Carbon uses Indonesian locale
-        \Carbon\Carbon::setLocale('id');
+        Carbon::setLocale('id');
         // Set PHP locale for formatLocalized method
         setlocale(LC_TIME, 'id_ID.utf8', 'id_ID', 'id');
 
         // Create new Excel spreadsheet
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
         // Set column headers
@@ -479,7 +427,7 @@ class AdminController extends Controller
         $sheet->setCellValue('F1', 'Tanggal Jatuh Tempo');
         $sheet->setCellValue('G1', 'Tanggal Kembali');
         $sheet->setCellValue('H1', 'Status');
-        $sheet->setCellValue('I1', 'Keterlambatan (Hari)');
+        $sheet->setCellValue('I1', 'Keterlambatan');
         $sheet->setCellValue('J1', 'Denda (Rp)');
 
         // Style header row
@@ -488,7 +436,7 @@ class AdminController extends Controller
                 'bold' => true,
             ],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => [
                     'rgb' => 'DDDDDD',
                 ],
@@ -508,7 +456,7 @@ class AdminController extends Controller
             $sheet->setCellValue('F' . $row, $borrowing['due_date']); // Now already in dddd, D MMMM Y format
             $sheet->setCellValue('G' . $row, $borrowing['return_date'] ?? 'Belum dikembalikan');
             $sheet->setCellValue('H' . $row, $borrowing['status']);
-            $sheet->setCellValue('I' . $row, $borrowing['late_days']);
+            $sheet->setCellValue('I' . $row, $borrowing['lateness_text'] ?? '-');
             $sheet->setCellValue('J' . $row, number_format($borrowing['fine_amount'], 0, ',', '.'));
 
             $row++;
@@ -520,16 +468,18 @@ class AdminController extends Controller
         }
 
         // Create writer
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer = new SpreadsheetWriter($spreadsheet);
 
         // Save to temporary file
         $tempFilePath = tempnam(sys_get_temp_dir(), 'export_');
         $writer->save($tempFilePath);
 
         // Return file download response
-        return response()->download($tempFilePath, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ])->deleteFileAfterSend(true);
+        return response()
+            ->download($tempFilePath, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend(true);
     }
 
     /**
@@ -538,15 +488,15 @@ class AdminController extends Controller
      * @param array $data
      * @param string $filename
      * @return \Illuminate\Http\Response
-     */    private function generateBorrowingsPdf(array $data, string $filename)
+     */ private function generateBorrowingsPdf(array $data, string $filename)
     {
         // Ensure Carbon uses Indonesian locale
-        \Carbon\Carbon::setLocale('id');
+        Carbon::setLocale('id');
         // Set PHP locale for formatLocalized method
         setlocale(LC_TIME, 'id_ID.utf8', 'id_ID', 'id');
 
         // Create PDF instance
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.exports.borrowings-pdf', [
+        $pdf = Pdf::loadView('admin.exports.borrowings-pdf', [
             'borrowings' => $data,
             'generatedDate' => $this->formatDateWithoutComma(now()) . ', ' . now()->format('H:i:s'),
             'filters' => request()->only(['search', 'status', 'date_range']),
@@ -580,7 +530,7 @@ class AdminController extends Controller
                 $notifications[] = [
                     'title' => 'Buku Terlambat',
                     'message' => "Terdapat {$overdueCount} buku yang terlambat dikembalikan.",
-                    'time' => now()->format('Y-m-d H:i')
+                    'time' => now()->format('Y-m-d H:i'),
                 ];
             }
 
@@ -590,7 +540,7 @@ class AdminController extends Controller
                 $notifications[] = [
                     'title' => 'Stok Buku Menipis',
                     'message' => "{$lowStockCount} buku memiliki stok yang hampir habis.",
-                    'time' => now()->format('Y-m-d H:i')
+                    'time' => now()->format('Y-m-d H:i'),
                 ];
             }
 
@@ -600,7 +550,7 @@ class AdminController extends Controller
                 $notifications[] = [
                     'title' => 'Buku Habis',
                     'message' => "{$outOfStockCount} buku saat ini tidak tersedia.",
-                    'time' => now()->format('Y-m-d H:i')
+                    'time' => now()->format('Y-m-d H:i'),
                 ];
             }
 
@@ -614,7 +564,7 @@ class AdminController extends Controller
     /**
      * Format date without commas in day name
      *
-     * @param \Carbon\Carbon|string $date
+     * @param Carbon|string $date
      * @return string|null
      */
     private function formatDateWithoutComma($date)
@@ -624,7 +574,7 @@ class AdminController extends Controller
         }
 
         if (is_string($date)) {
-            $date = \Carbon\Carbon::parse($date);
+            $date = Carbon::parse($date);
         }
 
         $dayNames = [
@@ -634,7 +584,7 @@ class AdminController extends Controller
             'Wednesday' => 'Rabu',
             'Thursday' => 'Kamis',
             'Friday' => 'Jumat',
-            'Saturday' => 'Sabtu'
+            'Saturday' => 'Sabtu',
         ];
 
         $monthNames = [
@@ -649,7 +599,7 @@ class AdminController extends Controller
             'September' => 'September',
             'October' => 'Oktober',
             'November' => 'November',
-            'December' => 'Desember'
+            'December' => 'Desember',
         ];
 
         $dayOfWeek = $dayNames[$date->format('l')] ?? $date->format('l');
