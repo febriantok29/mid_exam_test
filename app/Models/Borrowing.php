@@ -13,7 +13,7 @@ class Borrowing extends Model
      * @var string
      */
     protected $primaryKey = 'borrowing_id';
-    
+
     /**
      * The attributes that are mass assignable.
      *
@@ -26,7 +26,7 @@ class Borrowing extends Model
         'return_date',
         'status'
     ];
-    
+
     /**
      * The attributes that should be cast.
      *
@@ -36,7 +36,7 @@ class Borrowing extends Model
         'borrow_date' => 'date',
         'return_date' => 'date'
     ];
-    
+
     /**
      * Indicates if the model should be timestamped.
      *
@@ -46,7 +46,7 @@ class Borrowing extends Model
 
     /**
      * Get formatted borrow date
-     * 
+     *
      * @return string
      */
     public function getFormattedBorrowDateAttribute(): string
@@ -56,14 +56,14 @@ class Borrowing extends Model
 
     /**
      * Get formatted return date
-     * 
+     *
      * @return string|null
      */
     public function getFormattedReturnDateAttribute(): ?string
     {
         return $this->return_date ? $this->return_date->translatedFormat('l, j F Y') : null;
     }
-    
+
     /**
      * Get the member that owns the borrowing.
      */
@@ -71,7 +71,7 @@ class Borrowing extends Model
     {
         return $this->belongsTo(User::class, 'member_id', 'member_id');
     }
-    
+
     /**
      * Get the book that was borrowed.
      */
@@ -82,7 +82,7 @@ class Borrowing extends Model
 
     /**
      * Get the display status of the borrowing.
-     * 
+     *
      * @return array
      */
     public function getDisplayStatusAttribute(): array
@@ -122,7 +122,7 @@ class Borrowing extends Model
             return [
                 'text' => 'Perlu Dikembalikan',
                 'class' => 'bg-danger',
-                'tooltip' => 'Terlambat ' . ($daysFromBorrow - 14) . ' hari'
+                'tooltip' => 'Terlambat ' . floor($daysFromBorrow - 14) . ' hari'
             ];
         }
 
@@ -130,7 +130,7 @@ class Borrowing extends Model
             return [
                 'text' => 'Sedang Dipinjam',
                 'class' => 'bg-warning',
-                'tooltip' => 'Sisa ' . max(0, 14 - $daysFromBorrow) . ' hari lagi'
+                'tooltip' => 'Sisa ' . floor(max(0, 14 - $daysFromBorrow)) . ' hari lagi'
             ];
         }
 
@@ -144,7 +144,7 @@ class Borrowing extends Model
 
     /**
      * Get late status for display
-     * 
+     *
      * @return array
      */
     public function getLateStatusAttribute(): array
@@ -159,10 +159,10 @@ class Borrowing extends Model
 
         // Untuk buku yang sudah dikembalikan
         if ($this->status === 'returned' && $this->return_date) {
-            $borrowDays = $this->borrow_date->diffInDays($this->return_date);
+            $borrowDays = (int)$this->borrow_date->diffInDays($this->return_date);
             if ($borrowDays > 14) {
                 return [
-                    'text' => 'Terlambat ' . ($borrowDays - 14) . ' hari',
+                    'text' => 'Terlambat ' . floor($borrowDays - 14) . ' hari',
                     'class' => 'bg-warning'
                 ];
             }
@@ -176,14 +176,14 @@ class Borrowing extends Model
         // Hitung selisih hari, dengan mempertimbangkan apakah tanggal pinjam di masa lalu atau tidak
         $borrowDays = (int)$this->borrow_date->diffInDays(now());
         $isPast = $this->borrow_date->isPast();
-        
+
         if ($isPast && $borrowDays > 14) {
             return [
-                'text' => 'Terlambat ' . ($borrowDays - 14) . ' hari',
+                'text' => 'Terlambat ' . floor($borrowDays - 14) . ' hari',
                 'class' => 'bg-danger'
             ];
         }
-        
+
         if (!$isPast) {
             return [
                 'text' => 'Data Invalid',
@@ -192,14 +192,14 @@ class Borrowing extends Model
         }
 
         return [
-            'text' => 'Sisa ' . max(0, 14 - $borrowDays) . ' hari',
+            'text' => 'Sisa ' . floor(max(0, 14 - $borrowDays)) . ' hari',
             'class' => 'bg-success'
         ];
     }
 
     /**
      * Check if the borrowing is overdue
-     * 
+     *
      * @return bool
      */
     public function isOverdue(): bool
@@ -224,7 +224,7 @@ class Borrowing extends Model
 
     /**
      * Get the number of days the book is/was late
-     * 
+     *
      * @return int
      */
     public function getLateDays(): int
@@ -236,12 +236,12 @@ class Borrowing extends Model
 
         // Jika sudah dikembalikan, hitung keterlambatan berdasarkan tanggal kembali
         if ($this->status === 'returned' && $this->return_date) {
-            return max(0, $this->borrow_date->diffInDays($this->return_date) - 14);
+            return floor(max(0, $this->borrow_date->diffInDays($this->return_date) - 14));
         }
 
         // Jika belum dikembalikan, hitung keterlambatan sampai hari ini
         if ($this->status === 'borrowed') {
-            return max(0, $this->borrow_date->diffInDays(now()) - 14);
+            return floor(max(0, $this->borrow_date->diffInDays(now()) - 14));
         }
 
         return 0;
