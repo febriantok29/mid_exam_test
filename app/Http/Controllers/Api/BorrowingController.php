@@ -421,7 +421,7 @@ class BorrowingController extends Controller
                     'status' => $statusLabel,
                     'late_days' => abs($lateDays),
                     'lateness_text' => $latenessText,
-                    'fine_amount' => $lateDays > 0 ? (abs($lateDays) * 1000) : 0, // Rp 1.000/hari
+                    'fine_amount' => $lateDays > 0 ? (abs(intval($lateDays)) * 1000) : 0, // Rp 1.000/hari
                 ];
             });
 
