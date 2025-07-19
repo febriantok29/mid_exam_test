@@ -7,7 +7,7 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('books.index') }}">Buku</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('books.show', $book) }}">{{ $book->title }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('books.show', $book['book_id']) }}">{{ $book['title'] }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Pinjam</li>
             </ol>
         </nav>
@@ -26,10 +26,10 @@
                         @endif
 
                         <div class="mb-4">
-                            <h4>{{ $book->title }}</h4>
-                            <p class="text-muted">{{ $book->author }}</p>
-                            @if ($book->quantity_available > 0)
-                                <span class="badge bg-success">{{ $book->quantity_available }} Tersedia</span>
+                            <h4>{{ $book['title'] }}</h4>
+                            <p class="text-muted">{{ $book['author'] ?? 'Tidak Diketahui' }}</p>
+                            @if ($book['quantity_available'] > 0)
+                                <span class="badge bg-success">{{ $book['quantity_available'] }} Tersedia</span>
                             @else
                                 <span class="badge bg-danger">Tidak Tersedia</span>
                             @endif
@@ -38,7 +38,7 @@
                         <form action="{{ route('borrowings.store') }}" method="POST">
                             @csrf
 
-                            <input type="hidden" name="book_id" value="{{ $book->book_id }}">
+                            <input type="hidden" name="book_id" value="{{ $book['book_id'] }}">
 
                             <div class="mb-3">
                                 <label for="borrow_date" class="form-label">Tanggal Pinjam</label>
@@ -65,7 +65,7 @@
 
                             <div>
                                 <button type="submit" class="btn btn-primary">Pinjam Buku</button>
-                                <a href="{{ route('books.show', $book) }}" class="btn btn-secondary">Batal</a>
+                                <a href="{{ route('books.show', $book['book_id']) }}" class="btn btn-secondary">Batal</a>
                             </div>
                         </form>
                     </div>

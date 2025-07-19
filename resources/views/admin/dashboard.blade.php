@@ -87,10 +87,10 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <a href="{{ route('books.show', $book) }}" class="btn btn-info">
+                                                    <a href="{{ route('books.show', $book->book_id ?? $book->id ?? 0) }}" class="btn btn-info">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
-                                                    <a href="{{ route('books.edit', $book) }}" class="btn btn-warning">
+                                                    <a href="{{ route('books.edit', $book->book_id ?? $book->id ?? 0) }}" class="btn btn-warning">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
                                                 </div>
@@ -181,7 +181,14 @@
                                                 @if ($borrowing->status === 'returned')
                                                     <span class="badge bg-success">Dikembalikan</span>
                                                 @else
-                                                    @if ($borrowing->return_date && $borrowing->return_date < now())
+                                                    @php
+                                                        $isOverdue = false;
+                                                        if (isset($borrowing->return_date)) {
+                                                            $returnDate = \Carbon\Carbon::createFromFormat('Y-m-d', $borrowing->return_date);
+                                                            $isOverdue = $returnDate->lt(\Carbon\Carbon::now());
+                                                        }
+                                                    @endphp
+                                                    @if ($isOverdue)
                                                         <span class="badge bg-danger">Terlambat</span>
                                                     @else
                                                         <span class="badge bg-warning">Dipinjam</span>
