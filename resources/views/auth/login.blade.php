@@ -12,7 +12,7 @@
                         @csrf
 
                         <div class="mb-3">
-                            <label for="username" class="form-label">Nama Pengguna</label>
+                            <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control @error('username') is-invalid @enderror"
                                 id="username" name="username" value="{{ old('username') }}" required autofocus>
                             @error('username')
@@ -22,11 +22,16 @@
 
                         <div class="mb-3">
                             <label for="password" class="form-label">Kata Sandi</label>
-                            <input type="password" class="form-control @error('password') is-invalid @enderror"
-                                id="password" name="password" required>
-                            @error('password')
-                                <span class="invalid-feedback">{{ $message }}</span>
-                            @enderror
+                            <div class="input-group">
+                                <input type="password" class="form-control @error('password') is-invalid @enderror"
+                                    id="password" name="password" required>
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="bi bi-eye" id="password-icon"></i>
+                                </button>
+                                @error('password')
+                                    <span class="invalid-feedback">{{ $message }}</span>
+                                @enderror
+                            </div>
                         </div>
 
                         <div class="mb-3 form-check">
@@ -46,4 +51,27 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Password toggle functionality
+            const togglePassword = document.getElementById('togglePassword');
+            const password = document.getElementById('password');
+            const passwordIcon = document.getElementById('password-icon');
+
+            if (togglePassword) {
+                togglePassword.addEventListener('click', function() {
+                    // Toggle type attribute
+                    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                    password.setAttribute('type', type);
+
+                    // Toggle icon
+                    passwordIcon.classList.toggle('bi-eye');
+                    passwordIcon.classList.toggle('bi-eye-slash');
+                });
+            }
+        });
+    </script>
+    @endpush
 @endsection
