@@ -137,8 +137,8 @@ class AdminService
             // Add user_id to filters
             $filters['user_id'] = Auth::id();
 
-            // Clean up empty filters
-            $validFilters = array_filter($filters, fn($value) => $value !== null && $value !== '');
+            // Clean up empty filters, but keep empty strings to preserve filter selection
+            $validFilters = array_filter($filters, fn($value) => $value !== null);
 
             // Log the request
             Log::info('AdminService: Calling borrowings API', [

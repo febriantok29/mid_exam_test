@@ -277,7 +277,7 @@ class BorrowingService
                 return [
                     'text' => 'Dikembalikan Terlambat',
                     'class' => 'bg-warning',
-                    'tooltip' => "Dikembalikan setelah {$days} hari"
+                    'tooltip' => "Dikembalikan setelah " . floor($days) . " hari"
                 ];
             }
             return [
@@ -294,14 +294,14 @@ class BorrowingService
             return [
                 'text' => 'Perlu Dikembalikan',
                 'class' => 'bg-danger',
-                'tooltip' => 'Terlambat ' . ($daysFromBorrow - 14) . ' hari'
+                'tooltip' => 'Terlambat ' . floor($daysFromBorrow - 14) . ' hari'
             ];
         }
 
         return [
             'text' => 'Sedang Dipinjam',
             'class' => 'bg-warning',
-            'tooltip' => 'Sisa ' . max(0, 14 - $daysFromBorrow) . ' hari lagi'
+            'tooltip' => 'Sisa ' . floor(max(0, 14 - $daysFromBorrow)) . ' hari lagi'
         ];
     }
 
@@ -328,7 +328,7 @@ class BorrowingService
 
             if ($borrowDays > 14) {
                 return [
-                    'text' => 'Terlambat ' . ($borrowDays - 14) . ' hari',
+                    'text' => 'Terlambat ' . floor($borrowDays - 14) . ' hari',
                     'class' => 'bg-warning'
                 ];
             }
@@ -344,13 +344,13 @@ class BorrowingService
 
         if ($borrowDays > 14) {
             return [
-                'text' => 'Terlambat ' . ($borrowDays - 14) . ' hari',
+                'text' => 'Terlambat ' . floor($borrowDays - 14) . ' hari',
                 'class' => 'bg-danger'
             ];
         }
 
         return [
-            'text' => 'Sisa ' . max(0, 14 - $borrowDays) . ' hari',
+            'text' => 'Sisa ' . floor(max(0, 14 - $borrowDays)) . ' hari',
             'class' => 'bg-success'
         ];
     }

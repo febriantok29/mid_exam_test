@@ -45,16 +45,26 @@ class AuthService
      */
     public function register(array $data): array
     {
-        $request = new Request($data);
+        try {
+            // Ensure password_confirmation is present if password is set
+            if (isset($data['password']) && !isset($data['password_confirmation'])) {
+                $data['password_confirmation'] = $data['password'];
+            }
 
-        $response = $this->authController->register($request);
+            $request = new Request($data);
 
-        $responseBody = json_decode($response->getContent(), true);
+            $response = $this->authController->register($request);
 
-        if (isset($responseBody['error'])) {
-            throw new Exception($responseBody['error']);
+            $responseBody = json_decode($response->getContent(), true);
+
+            if (isset($responseBody['error'])) {
+                throw new Exception($responseBody['error']);
+            }
+
+            return $responseBody['data'] ?? [];
+        } catch (Exception $e) {
+            // Re-throw the exception with a clearer message
+            throw new Exception('Terjadi kesalahan saat registrasi: ' . $e->getMessage());
         }
-
-        return $responseBody['data'] ?? [];
     }
 }
