@@ -268,8 +268,17 @@ class AdminController extends Controller
                 return $borrowingObj;
             });
 
-            // Create a new paginator with the converted objects
-            $borrowings = new LengthAwarePaginator($convertedBorrowings, $paginatorBorrowings->total(), $paginatorBorrowings->perPage(), $paginatorBorrowings->currentPage(), $paginatorBorrowings->getOptions());
+            // Create a new paginator with the converted objects and maintain the query parameters
+            $borrowings = new LengthAwarePaginator(
+                $convertedBorrowings,
+                $paginatorBorrowings->total(),
+                $paginatorBorrowings->perPage(),
+                $paginatorBorrowings->currentPage(),
+                [
+                    'path' => request()->url(),
+                    'query' => request()->query()  // This preserves all query parameters including filters
+                ]
+            );
 
             return view('admin.borrowings', compact('borrowings'));
         } catch (Exception $e) {
@@ -428,7 +437,7 @@ class AdminController extends Controller
         $sheet->setCellValue('G1', 'Tanggal Kembali');
         $sheet->setCellValue('H1', 'Status');
         $sheet->setCellValue('I1', 'Keterlambatan');
-        $sheet->setCellValue('J1', 'Denda (Rp)');
+        $sheet->setCellValue('J1', 'Denda (Rp 1.000/hari)');
 
         // Style header row
         $headerStyle = [
@@ -457,7 +466,7 @@ class AdminController extends Controller
             $sheet->setCellValue('G' . $row, $borrowing['return_date'] ?? 'Belum dikembalikan');
             $sheet->setCellValue('H' . $row, $borrowing['status']);
             $sheet->setCellValue('I' . $row, $borrowing['lateness_text'] ?? '-');
-            $sheet->setCellValue('J' . $row, number_format($borrowing['fine_amount'], 0, ',', '.'));
+            $sheet->setCellValue('J' . $row, 'Rp ' . number_format($borrowing['fine_amount'], 0, ',', '.'));
 
             $row++;
         }

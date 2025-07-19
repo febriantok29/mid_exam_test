@@ -18,6 +18,39 @@
             </div>
         </div>
 
+        @if(request('search') || request('status') || request('date_range'))
+        <div class="alert alert-info mb-4">
+            <strong>Filter Aktif:</strong>
+            @if(request('search'))
+                <span class="badge bg-primary me-2">Pencarian: {{ request('search') }}</span>
+            @endif
+            @if(request('status'))
+                <span class="badge bg-primary me-2">Status:
+                    @if(request('status') == 'borrowed')
+                        Masih Dipinjam
+                    @elseif(request('status') == 'returned')
+                        Dikembalikan
+                    @elseif(request('status') == 'overdue')
+                        Terlambat
+                    @endif
+                </span>
+            @endif
+            @if(request('date_range'))
+                <span class="badge bg-primary me-2">Rentang Waktu:
+                    @if(request('date_range') == 'last_month')
+                        Bulan Terakhir
+                    @elseif(request('date_range') == 'last_3_months')
+                        3 Bulan Terakhir
+                    @elseif(request('date_range') == 'last_6_months')
+                        6 Bulan Terakhir
+                    @elseif(request('date_range') == 'last_year')
+                        Tahun Terakhir
+                    @endif
+                </span>
+            @endif
+        </div>
+        @endif
+
         <div class="card mb-4">
             <div class="card-header">
                 <h5>Filter Peminjaman</h5>
@@ -151,7 +184,7 @@
                                 {{ $borrowings->lastItem() ?? 0 }} dari {{ $borrowings->total() }} data</p>
                         </div>
                         <div>
-                            {{ $borrowings->appends(request()->query())->links() }}
+                            {{ $borrowings->links() }}
                         </div>
                     </div>
                 @else

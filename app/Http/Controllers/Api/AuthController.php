@@ -74,10 +74,18 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
+            // Handle password confirmation if missing
+            if ($request->has('password') && !$request->has('password_confirmation')) {
+                $request->merge(['password_confirmation' => $request->password]);
+            }
+
             $validatedData = $request->validate([
-                'username' => 'required|string|max:50|unique:users',
-                'password' => 'required|string|min:6|confirmed',
+                'username' => 'required|string|max:50|unique:members',
+                'password' => 'required|string|min:6',
+                'password_confirmation' => 'required_with:password|string|same:password',
                 'full_name' => 'required|string|max:100',
+            ], [
+                'password_confirmation.same' => 'Konfirmasi kata sandi tidak cocok.',
             ]);
 
             $user = User::create([

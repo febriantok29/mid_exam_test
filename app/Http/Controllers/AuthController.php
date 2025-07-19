@@ -66,24 +66,37 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        $validatedData = $request->validate([
-            'username' => 'required|string|max:50|unique:members',
-            'password' => 'required|string|min:6|confirmed',
-            'full_name' => 'required|string|max:100',
-        ], [
-            'username.unique' => 'Username sudah digunakan.',
-            'password.confirmed' => 'Konfirmasi password tidak cocok.',
-            'full_name.required' => 'Nama lengkap harus diisi.',
-        ]);
+        try {
+            $validatedData = $request->validate([
+                'username' => 'required|string|max:50|unique:members',
+                'password' => 'required|string|min:6',
+                'password_confirmation' => 'required|string|matches_password:password',
+                'full_name' => 'required|string|max:100',
+            ], [
+                'username.unique' => 'Username sudah digunakan.',
+                'password_confirmation.matches_password' => 'Konfirmasi kata sandi tidak cocok.',
+                'full_name.required' => 'Nama lengkap harus diisi.',
+            ]);
 
-        // Use service to register
-        $userData = $this->authService->register($validatedData);
+            // Make sure password_confirmation is included in data sent to service
+            $registrationData = $validatedData;
+            if (!isset($registrationData['password_confirmation']) && $request->has('password_confirmation')) {
+                $registrationData['password_confirmation'] = $request->input('password_confirmation');
+            }
 
-        // Get user for web auth
-        $user = User::find($userData['id']);
-        Auth::login($user);
+            // Use service to register
+            $userData = $this->authService->register($registrationData);
 
-        return redirect('/dashboard');
+            // Get user for web auth
+            $user = User::find($userData['id']);
+            Auth::login($user);
+
+            return redirect('/dashboard');
+        } catch (Exception $e) {
+            return redirect()->back()
+                ->withInput($request->except(['password', 'password_confirmation']))
+                ->withErrors(['username' => 'Terjadi kesalahan saat registrasi: ' . $e->getMessage()]);
+        }
     }
 
     /**
